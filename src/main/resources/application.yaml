@@ -1,0 +1,22 @@
+server:
+  port: 6363
+
+spring:
+  application:
+    name: Xiangqi
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+  config:
+    import: env.properties
+
+jwt:
+  signer-key: ${SIGNER_KEY}
+  valid-duration: 3600 # in second
+  refreshable-duration: 36000 # in seconds
+

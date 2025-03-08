@@ -18,6 +18,9 @@ public enum ErrorCode {
     // Authentication
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "Unauthenticated error."),
     UNAUTHORIZED(HttpStatus.FORBIDDEN, "You do not have permission to perform this operation."),
+    // Queue
+    EMPTY_QUEUE(HttpStatus.CONFLICT, "Queue is empty."),
+    UNQUEUE_INVALID(HttpStatus.CONFLICT, "Unqueue is invalid."),
     ;
 
     HttpStatus httpStatus;

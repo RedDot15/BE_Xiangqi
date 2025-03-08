@@ -44,4 +44,7 @@ public class MatchEntity {
     @Column(name = "end_time")
     Instant endTime;
 
+    @PrePersist void control(){
+        setStartTime(Instant.now());
+    }
 }

@@ -24,8 +24,7 @@ public class PlayerEntity extends UserEntity {
     @Column(name = "rating", nullable = false)
     Integer rating;
 
-    @PrePersist
-    public void control() {
+    @PrePersist void control() {
         setRating(1200);
         setRole("PLAYER");
     }

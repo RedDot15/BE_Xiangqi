@@ -14,6 +14,10 @@ spring:
       ddl-auto: none
   config:
     import: env.properties
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 jwt:
   signer-key: ${SIGNER_KEY}

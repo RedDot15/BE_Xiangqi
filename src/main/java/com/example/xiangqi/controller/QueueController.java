@@ -17,17 +17,17 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RestController
-@RequestMapping("/api/match")
+@RequestMapping("/api/queue")
 public class QueueController {
 	QueueService queueService;
 
-	@PostMapping("/queue")
+	@PostMapping("/join")
 	public ResponseEntity<ResponseObject> joinQueue() {
 		// Fetch & Return all users
 		return buildResponse(HttpStatus.OK, "Queueing completed.", queueService.queue());
 	}
 
-	@PostMapping("/unqueue")
+	@PostMapping("/cancel")
 	public ResponseEntity<ResponseObject> unQueue() {
 		// Unqueue
 		queueService.unqueue();

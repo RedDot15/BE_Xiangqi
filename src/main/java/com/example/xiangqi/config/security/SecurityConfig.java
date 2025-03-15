@@ -23,7 +23,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import javax.crypto.spec.SecretKeySpec;
-import java.util.Collections;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -35,7 +34,8 @@ public class SecurityConfig {
 	String[] PUBLIC_ENDPOINTS = {
 		"/api/auth/token/refresh",
 		"/api/auth/token/get",
-		"/api/player/register"
+		"/api/player/register",
+		"/ws/**"
 	};
 
 	@NonFinal

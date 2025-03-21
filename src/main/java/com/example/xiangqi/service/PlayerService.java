@@ -33,7 +33,7 @@ public class PlayerService {
 		String username = context.getAuthentication().getName();
 		// Fetch
 		PlayerEntity playerEntity = playerRepository
-				.findAllByUsername(username)
+				.findByUsername(username)
 				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 		// Return
 		return playerMapper.toPlayerResponse(playerEntity);

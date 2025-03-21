@@ -46,5 +46,6 @@ public class MatchEntity {
 
     @PrePersist void control(){
         setStartTime(Instant.now());
+        setResult("PLAYING...");
     }
 }

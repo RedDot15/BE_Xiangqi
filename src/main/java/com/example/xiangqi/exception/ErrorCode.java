@@ -21,6 +21,15 @@ public enum ErrorCode {
     // Queue
     EMPTY_QUEUE(HttpStatus.CONFLICT, "Queue is empty."),
     UNQUEUE_INVALID(HttpStatus.CONFLICT, "Unqueue is invalid."),
+    // Match
+    MATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Match not found."),
+    // Board State
+    BOARD_STATE_SERIALIZED_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize board state"),
+    BOARD_STATE_PARSING_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "Error parsing board state from Redis"),
+    // Move
+    INVALID_MOVE(HttpStatus.CONFLICT, "Invalid move."),
+    // Resign
+    INVALID_RESIGN(HttpStatus.FORBIDDEN, "This is not your turn."),
     ;
 
     HttpStatus httpStatus;

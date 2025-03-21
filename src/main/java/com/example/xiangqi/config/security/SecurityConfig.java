@@ -31,7 +31,7 @@ import javax.crypto.spec.SecretKeySpec;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-	String[] PUBLIC_ENDPOINTS = {
+	private static final String[] PUBLIC_ENDPOINTS = {
 		"/api/auth/token/refresh",
 		"/api/auth/token/get",
 		"/api/player/register",

@@ -10,5 +10,5 @@ import java.util.Optional;
 
 @Repository
 public interface PlayerRepository extends JpaRepository<PlayerEntity, Long> {
-    Optional<PlayerEntity> findAllByUsername(@Size(max = 50) @NotNull String username);
+    Optional<PlayerEntity> findByUsername(@Size(max = 50) @NotNull String username);
 }

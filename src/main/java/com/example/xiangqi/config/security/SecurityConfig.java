@@ -1,5 +1,7 @@
 package com.example.xiangqi.config.security;
 
+import com.example.xiangqi.service.LoggingQueueServiceDecorator;
+import com.example.xiangqi.service.QueueService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -7,6 +9,7 @@ import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -35,7 +38,8 @@ public class SecurityConfig {
 		"/api/auth/token/refresh",
 		"/api/auth/token/get",
 		"/api/player/register",
-		"/ws/**"
+		"/ws/**",
+		"/api/queue/join"
 	};
 
 	@NonFinal
@@ -98,5 +102,11 @@ public class SecurityConfig {
 		jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
 
 		return jwtAuthenticationConverter;
+	}
+
+	@Bean
+	@Primary // Đảm bảo Decorator được inject thay vì gốc
+	public QueueService queueService(LoggingQueueServiceDecorator decorator) {
+		return decorator;
 	}
 }

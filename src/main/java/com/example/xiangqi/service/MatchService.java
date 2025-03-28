@@ -41,33 +41,33 @@ public class MatchService {
 	private final UserRepository userRepository;
 
 	public Long createMatch(Long player1Id, Long player2Id) {
-		MatchEntity matchEntity = new MatchEntity();
-
-		// Randomly assign colors
-		boolean firstIsRed = Math.random() < 0.5;
-		matchEntity.setRedPlayerEntity(firstIsRed
-				? playerRepository.getReferenceById(player1Id)
-				: playerRepository.getReferenceById(player2Id));
-		matchEntity.setBlackPlayerEntity(firstIsRed
-				? playerRepository.getReferenceById(player2Id)
-				: playerRepository.getReferenceById(player1Id));
-
-		matchRepository.save(matchEntity);
-
-		// Initialize board state & store in Redis
-		String initialBoard = BoardUtils.getInitialBoardState();
-		redisService.saveBoardStateJson(matchEntity.getId(), initialBoard);
-		redisService.savePlayerId(matchEntity.getId(), firstIsRed ? player1Id : player2Id, true);
-		redisService.savePlayerId(matchEntity.getId(), firstIsRed ? player2Id : player1Id, false);
-		redisService.saveTurn(matchEntity.getId(), firstIsRed ? player1Id : player2Id);
+//		MatchEntity matchEntity = new MatchEntity();
+//
+//		// Randomly assign colors
+//		boolean firstIsRed = Math.random() < 0.5;
+//		matchEntity.setRedPlayerEntity(firstIsRed
+//				? playerRepository.getReferenceById(player1Id)
+//				: playerRepository.getReferenceById(player2Id));
+//		matchEntity.setBlackPlayerEntity(firstIsRed
+//				? playerRepository.getReferenceById(player2Id)
+//				: playerRepository.getReferenceById(player1Id));
+//
+//		matchRepository.save(matchEntity);
+//
+//		// Initialize board state & store in Redis
+//		String initialBoard = BoardUtils.getInitialBoardState();
+//		redisService.saveBoardStateJson(matchEntity.getId(), initialBoard);
+//		redisService.savePlayerId(matchEntity.getId(), firstIsRed ? player1Id : player2Id, true);
+//		redisService.savePlayerId(matchEntity.getId(), firstIsRed ? player2Id : player1Id, false);
+//		redisService.saveTurn(matchEntity.getId(), firstIsRed ? player1Id : player2Id);
 
 		// Notify players via WebSocket
 		messagingTemplate.convertAndSend("/topic/queue/" + player1Id,
-				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
+				new ResponseObject("ok", "Match found.", new QueueResponse(1L, MATCH_SUCCESS)));
 		messagingTemplate.convertAndSend("/topic/queue/" + player2Id,
-				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
+				new ResponseObject("ok", "Match found.", new QueueResponse(1L, MATCH_SUCCESS)));
 
-		return matchEntity.getId();
+		return 1L;
 	}
 
 	public MatchStateResponse getMatchStateById(Long matchId) {

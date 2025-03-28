@@ -27,22 +27,22 @@ public class QueueService {
     private static final String MATCH_SUCCESS = "MATCH_FOUND";
 
     public QueueResponse queue() {
-        // Get Jwt token from Context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        // Get playerId from token
-        Long playerId = jwt.getClaim("uid");
+//        // Get Jwt token from Context
+//        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//        Jwt jwt = (Jwt) authentication.getPrincipal();
+//        // Get playerId from token
+//        Long playerId = jwt.getClaim("uid");
 
         // Check if another player is already waiting
         String opponentId = redisTemplate.opsForList().leftPop(QUEUE_KEY);
 
         if (opponentId != null) {
             // Match found! Create a new match
-            Long matchId = matchService.createMatch(Long.valueOf(opponentId), playerId);
+            Long matchId = matchService.createMatch(1L, 1L);
             return new QueueResponse(matchId, MATCH_SUCCESS);
         } else {
             // No opponent yet, add this player to the queue
-            redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(playerId));
+            redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(1L));
             return new QueueResponse(null, "WAITING_FOR_OPPONENT");
         }
     }

@@ -32,11 +32,10 @@ public class MatchController {
         return buildResponse(HttpStatus.OK, "Move request successfully.", matchService.move(matchId, moveRequest));
     }
 
-    @PostMapping("/{matchId}/resign")
+    @PutMapping("/{matchId}/resign")
     public ResponseEntity<ResponseObject> resignGame(@PathVariable Long matchId) {
         // Handle move request
         return buildResponse(HttpStatus.OK, "Move request successfully.", matchService.resign(matchId));
-
     }
 
 }

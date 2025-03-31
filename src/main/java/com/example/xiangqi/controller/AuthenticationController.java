@@ -21,7 +21,7 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 public class AuthenticationController {
 	AuthenticationService authenticationService;
 
-	@GetMapping("/token/get")
+	@PostMapping(value = "/token")
 	public ResponseEntity<ResponseObject> authenticate(@Valid @RequestBody AuthenticationRequest request) {
 		return buildResponse(HttpStatus.OK, "Authenticate successfully.", authenticationService.authenticate(request));
 	}

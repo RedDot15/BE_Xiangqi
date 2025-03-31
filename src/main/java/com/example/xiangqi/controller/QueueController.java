@@ -8,9 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 
@@ -27,7 +25,7 @@ public class QueueController {
 		return buildResponse(HttpStatus.OK, "Queueing completed.", queueService.queue());
 	}
 
-	@PostMapping("/cancel")
+	@DeleteMapping("/cancel")
 	public ResponseEntity<ResponseObject> unQueue() {
 		// Unqueue
 		queueService.unqueue();

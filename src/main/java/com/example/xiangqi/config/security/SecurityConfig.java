@@ -33,7 +33,7 @@ public class SecurityConfig {
 
 	private static final String[] PUBLIC_ENDPOINTS = {
 		"/api/auth/token/refresh",
-		"/api/auth/token/get",
+		"/api/auth/token",
 		"/api/player/register",
 		"/ws/**"
 	};

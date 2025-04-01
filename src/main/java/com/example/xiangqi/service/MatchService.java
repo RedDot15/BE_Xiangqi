@@ -38,7 +38,6 @@ public class MatchService {
 	RedisService redisService;
 
 	private static final String MATCH_SUCCESS = "MATCH_FOUND";
-	private final UserRepository userRepository;
 
 	public Long createMatch(Long player1Id, Long player2Id) {
 		MatchEntity matchEntity = new MatchEntity();

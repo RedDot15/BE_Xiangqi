@@ -79,9 +79,9 @@ public class MoveValidator {
     }
 
     private static boolean isValidPawnMove(int fromRow, int fromCol, int toRow, int toCol, String piece) {
-        int direction = Character.isUpperCase(piece.charAt(0)) ? 1 : -1; // Red moves down, Black moves up
-        boolean isAcrossRiver = (Character.isUpperCase(piece.charAt(0)) && fromRow >= 5) ||
-                (Character.isLowerCase(piece.charAt(0)) && fromRow <= 4);
+        int direction = Character.isUpperCase(piece.charAt(0)) ? -1 : 1; // Red moves up, Black moves down
+        boolean isAcrossRiver = (Character.isUpperCase(piece.charAt(0)) && fromRow <= 4) ||
+                (Character.isLowerCase(piece.charAt(0)) && fromRow >= 5);
 
         // Moving forward
         if (toRow == fromRow + direction && toCol == fromCol) {
@@ -133,7 +133,7 @@ public class MoveValidator {
 
         // Cannot cross the river
         boolean isRed = Character.isUpperCase(piece.charAt(0));
-        if ((isRed && toRow > 4) || (!isRed && toRow < 5)) {
+        if ((isRed && toRow < 5) || (!isRed && toRow > 4)) {
             return false;
         }
 
@@ -159,7 +159,7 @@ public class MoveValidator {
         }
 
         boolean isRed = Character.isUpperCase(piece.charAt(0));
-        if ((isRed && (toRow < 0 || toRow > 2)) || (!isRed && (toRow < 7 || toRow > 9))) {
+        if ((isRed && (toRow < 7 || toRow > 9)) || (!isRed && (toRow < 0 || toRow > 2))) {
             return false;
         }
 
@@ -178,7 +178,7 @@ public class MoveValidator {
         }
 
         boolean isRed = Character.isUpperCase(piece.charAt(0));
-        if ((isRed && (toRow < 0 || toRow > 2)) || (!isRed && (toRow < 7 || toRow > 9))) {
+        if ((isRed && (toRow < 7 || toRow > 9)) || (!isRed && (toRow < 0 || toRow > 2))) {
             return false;
         }
 

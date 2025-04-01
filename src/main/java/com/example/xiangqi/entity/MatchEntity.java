@@ -21,6 +21,7 @@ import java.time.Instant;
 })
 public class MatchEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     Long id;
 

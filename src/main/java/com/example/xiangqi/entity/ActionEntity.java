@@ -20,8 +20,9 @@ import java.time.Instant;
 })
 public class ActionEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    private Long id;
+    Long id;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

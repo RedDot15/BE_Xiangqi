@@ -19,10 +19,10 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 public class QueueController {
 	QueueService queueService;
 
-	@PostMapping("/join")
-	public ResponseEntity<ResponseObject> joinQueue() {
+	@PostMapping("/join/{queueType}")
+	public ResponseEntity<ResponseObject> joinQueue(@PathVariable Integer queueType) {
 		// Fetch & Return all users
-		return buildResponse(HttpStatus.OK, "Queueing completed.", queueService.queue());
+		return buildResponse(HttpStatus.OK, "Queueing completed.", queueService.queue(queueType));
 	}
 
 	@DeleteMapping("/cancel")

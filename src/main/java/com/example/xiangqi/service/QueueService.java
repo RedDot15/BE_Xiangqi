@@ -3,21 +3,23 @@ package com.example.xiangqi.service;
 import com.example.xiangqi.dto.response.QueueResponse;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
+import com.example.xiangqi.strategy.QueueStrategy;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
-@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Transactional
 @Service
@@ -25,28 +27,31 @@ public class QueueService {
     RedisTemplate<String, String> redisTemplate;
     MatchService matchService;
 
-    private static final String QUEUE_KEY = "waiting_players";
-    private static final String MATCH_SUCCESS = "MATCH_FOUND";
+    Map<String, QueueStrategy> strategies;
 
-    public QueueResponse queue() {
+    @Autowired
+    public QueueService(Map<String, QueueStrategy> strategies, MatchService matchService, RedisTemplate<String, String> redisTemplate) {
+        this.strategies = strategies;
+        this.matchService = matchService;
+        this.redisTemplate = redisTemplate;
+    }
+
+    private static final String QUEUE_KEY = "waiting_players";
+
+    public QueueResponse queue(Integer queueType) {
         // Get Jwt token from Context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Jwt jwt = (Jwt) authentication.getPrincipal();
         // Get playerId from token
         Long playerId = jwt.getClaim("uid");
 
-        // Check if another player is already waiting
-        String opponentId = redisTemplate.opsForList().leftPop(QUEUE_KEY);
-
-        if (opponentId != null) {
-            // Match found! Create a new match
-            Long matchId = matchService.createMatch(Long.valueOf(opponentId), playerId);
-            return new QueueResponse(matchId, MATCH_SUCCESS);
-        } else {
-            // No opponent yet, add this player to the queue
-            redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(playerId));
-            return new QueueResponse(null, "WAITING_FOR_OPPONENT");
+        // Chọn strategy dựa trên queueType
+        QueueStrategy strategy = strategies.get(queueType.equals(1) ? "normal" : "ranked");
+        if (strategy == null) {
+            throw new IllegalArgumentException("Loại queue không hợp lệ: " + queueType);
         }
+
+        return strategy.queue(playerId, redisTemplate, matchService);
     }
 
     public void unqueue(){

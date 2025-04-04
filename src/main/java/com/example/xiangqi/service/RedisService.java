@@ -39,11 +39,11 @@ import org.springframework.stereotype.Service;
     }
 
     public Long getPlayerId(Long matchId, boolean isRedPlayer) {
-        return (Long) redisTemplate.opsForValue().get(String.format(PLAYER_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"));
+        return ((Number) redisTemplate.opsForValue().get(String.format(PLAYER_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"))).longValue();
     }
 
     public Long getTurn(Long matchId) {
-        return (Long) redisTemplate.opsForValue().get(String.format(TURN_KEY_PREFIX, matchId));
+        return ((Number) redisTemplate.opsForValue().get(String.format(TURN_KEY_PREFIX, matchId))).longValue();
     }
 
     // Delete

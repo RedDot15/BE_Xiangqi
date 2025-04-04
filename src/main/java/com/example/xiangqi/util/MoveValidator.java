@@ -30,7 +30,7 @@ public class MoveValidator {
         }
 
         // Simulate the move on a temporary board
-        String[][] tempBoard = board.clone(); // Create a copy of the board
+        String[][] tempBoard = DeepClone.clone(board); // Create a copy of the board
         tempBoard[toRow][toCol] = tempBoard[fromRow][fromCol]; // Move the piece
         tempBoard[fromRow][fromCol] = ""; // Empty the old position
 
@@ -55,11 +55,11 @@ public class MoveValidator {
     private static boolean isOutOfBoard(int fromRow, int fromCol, int toRow, int toCol) {
         // Out of range
         if (fromRow < 0 || fromRow > 9 || toRow < 0 || toRow > 9)
-            return false;
+            return true;
         if (fromCol < 0 || fromCol > 8 || toCol < 0 || toCol > 8)
-            return false;
+            return true;
 
-        return true;
+        return false;
     }
 
     private static boolean isCorrectTurn(String piece, Long redPlayerId, Long blackPlayerId, Long turn) {
@@ -234,7 +234,7 @@ public class MoveValidator {
         }
 
         // Check if there are any pieces between them
-        for (int row = redKingRow + 1; row < blackKingRow; row++) {
+        for (int row = redKingRow - 1; row > blackKingRow; row--) {
             if (!board[row][redKingCol].equals("")) { // If there's a piece between them
                 return false;
             }

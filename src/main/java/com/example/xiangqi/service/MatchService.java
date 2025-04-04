@@ -12,13 +12,13 @@ import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.helper.ResponseObject;
 import com.example.xiangqi.repository.MatchRepository;
 import com.example.xiangqi.repository.PlayerRepository;
-import com.example.xiangqi.repository.UserRepository;
 import com.example.xiangqi.util.BoardUtils;
 import com.example.xiangqi.util.MoveValidator;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Slf4j
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Transactional
@@ -61,9 +62,9 @@ public class MatchService {
 		redisService.saveTurn(matchEntity.getId(), firstIsRed ? player1Id : player2Id);
 
 		// Notify players via WebSocket
-		messagingTemplate.convertAndSend("/topic/queue/" + player1Id,
+		messagingTemplate.convertAndSend("/topic/queue/player/" + player1Id,
 				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
-		messagingTemplate.convertAndSend("/topic/queue/" + player2Id,
+		messagingTemplate.convertAndSend("/topic/queue/player/" + player2Id,
 				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
 
 		return matchEntity.getId();
@@ -153,7 +154,7 @@ public class MatchService {
 		redisService.deletePlayerId(matchEntity.getId(), false);
 		redisService.deleteTurn(matchEntity.getId());
 
-		messagingTemplate.convertAndSend("/topic/match/" + (isRed ? blackPlayerId : redPlayerId),
+		messagingTemplate.convertAndSend("/topic/match/player/" + (isRed ? blackPlayerId : redPlayerId),
 				new ResponseObject("ok", "You win the match", new MatchResultResponse("WIN", isRed ? blackPlayerEntity.getRating() : redPlayerEntity.getRating())));
 
 		return new MatchResultResponse("LOSE", isRed ? redPlayerEntity.getRating() : blackPlayerEntity.getRating());
@@ -165,6 +166,7 @@ public class MatchService {
 				boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()]; // Move piece
 		boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()] = ""; // Clear old position
 
+
 		// Convert back to JSON and save to Redis
 		String updatedBoardStateJson = BoardUtils.boardSerialize(boardState);
 		redisService.saveBoardStateJson(matchId, updatedBoardStateJson);
@@ -174,7 +176,7 @@ public class MatchService {
 		redisService.saveTurn(matchId, nextTurn);
 
 		// Notify players via WebSocket
-		messagingTemplate.convertAndSend("/topic/match/" + (currentTurn.equals(redPlayerId) ? blackPlayerId : redPlayerId),
+		messagingTemplate.convertAndSend("/topic/match/player/" + (currentTurn.equals(redPlayerId) ? blackPlayerId : redPlayerId),
 				new ResponseObject("ok", "Opponent player has moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 	}
 

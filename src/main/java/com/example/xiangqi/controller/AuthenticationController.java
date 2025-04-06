@@ -26,6 +26,11 @@ public class AuthenticationController {
 		return buildResponse(HttpStatus.OK, "Authenticate successfully.", authenticationService.authenticate(request));
 	}
 
+	@GetMapping("/token/introspect")
+	public ResponseEntity<ResponseObject> introspect() {
+		return buildResponse(HttpStatus.OK, "Token valid.", null);
+	}
+
 	@PostMapping("/token/refresh")
 	public ResponseEntity<ResponseObject> refreshToken(@Valid @RequestBody RefreshRequest request) {
 		return buildResponse(HttpStatus.OK, "Authenticate successfully.", authenticationService.refresh(request));

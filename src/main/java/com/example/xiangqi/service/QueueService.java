@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -24,9 +25,15 @@ import java.util.Objects;
 public class QueueService {
     RedisTemplate<String, String> redisTemplate;
     MatchService matchService;
+    PlayerService playerService;
 
-    private static final String QUEUE_KEY = "waiting_players";
+    private static final String QUEUE_KEY = "waitingPlayers";
+    private static final String LOCK_KEY = "lock:waitingPlayers";
     private static final String MATCH_SUCCESS = "MATCH_FOUND";
+    private static final String WAITING_FOR_OPPONENT = "WAITING_FOR_OPPONENT";
+
+    private static final long LOCK_TIMEOUT_SECONDS = 10;
+    private static final long RETRY_DELAY_MILLIS = 100;
 
     public QueueResponse queue() {
         // Get Jwt token from Context
@@ -35,8 +42,35 @@ public class QueueService {
         // Get playerId from token
         Long playerId = jwt.getClaim("uid");
 
-        // Check if another player is already waiting
-        String opponentId = redisTemplate.opsForList().leftPop(QUEUE_KEY);
+        // Get current player's rank
+        Integer playerRating = playerService.getRatingById(playerId);
+
+        String opponentId = null;
+
+        // Wait to acquire lock
+        acquireLock();
+
+        try {
+            // Browse for opponent with equivalent rank
+            Long listSize = redisTemplate.opsForList().size(QUEUE_KEY);
+
+            for (int i = 0; i < listSize; i++) {
+                String potentialOpponentId = redisTemplate.opsForList().index(QUEUE_KEY, i);
+                if (potentialOpponentId != null && !potentialOpponentId.equals(String.valueOf(playerId))) {
+                    Integer opponentRank = playerService.getRatingById(Long.valueOf(potentialOpponentId));
+                    // Match if opponent's rank is equivalent
+                    if (Math.abs(playerRating - opponentRank) <= 100) {
+                        opponentId = potentialOpponentId;
+                        // Remove opponent's ID from queue
+                        redisTemplate.opsForList().remove(QUEUE_KEY, 1, opponentId);
+                        break;
+                    }
+                }
+            }
+        } finally {
+            // Always release the lock
+            releaseLock();
+        }
 
         if (opponentId != null) {
             // Match found! Create a new match
@@ -45,7 +79,7 @@ public class QueueService {
         } else {
             // No opponent yet, add this player to the queue
             redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(playerId));
-            return new QueueResponse(null, "WAITING_FOR_OPPONENT");
+            return new QueueResponse(null, WAITING_FOR_OPPONENT);
         }
     }
 
@@ -56,16 +90,39 @@ public class QueueService {
         // Get playerId from token
         Long playerId = jwt.getClaim("uid");
 
-        // Pop my Id from queue
-        Long poppedId;
-        try {
-            poppedId = Long.valueOf(Objects.requireNonNull(redisTemplate.opsForList().rightPop(QUEUE_KEY)));
-        } catch (NullPointerException e) {
-            throw new AppException(ErrorCode.EMPTY_QUEUE);
-        }
+        // Wait to acquire lock
+        acquireLock();
 
-        // Check if the popped Id is mine
-        if (!playerId.equals(poppedId))
-            throw new AppException(ErrorCode.UNQUEUE_INVALID);
+        try {
+            // Remove my Id from queue
+            Long removeCount = redisTemplate.opsForList().remove(QUEUE_KEY, 1, String.valueOf(playerId));
+            // Not found exception
+            if (removeCount == 0)
+                throw new AppException(ErrorCode.UNQUEUE_INVALID);
+        } finally {
+            // Release lock
+            releaseLock();
+        }
+    }
+
+    private boolean acquireLock() {
+        while (true) {
+            // Try to set the lock with a timeout
+            Boolean success = redisTemplate.opsForValue().setIfAbsent(LOCK_KEY, "locked", LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (success != null && success) {
+                return true;
+            }
+            try {
+                Thread.sleep(RETRY_DELAY_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while waiting to retry lock acquisition", e);
+            }
+        }
+    }
+
+    private void releaseLock() {
+        // Remove the lock
+        redisTemplate.delete(LOCK_KEY);
     }
 }

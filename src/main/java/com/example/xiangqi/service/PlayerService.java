@@ -39,6 +39,10 @@ public class PlayerService {
 		return playerMapper.toPlayerResponse(playerEntity);
 	}
 
+	public Integer getRatingById(Long id) {
+		return playerRepository.findRatingById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+	}
+
 	public PlayerResponse register(PlayerRequest playerRequest) {
 		// Mapping userRequest -> userEntity
 		PlayerEntity playerEntity = playerMapper.toPlayerEntity(playerRequest);

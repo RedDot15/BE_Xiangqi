@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -77,8 +78,12 @@ public class QueueService {
             Long matchId = matchService.createMatch(Long.valueOf(opponentId), playerId);
             return new QueueResponse(matchId, MATCH_SUCCESS);
         } else {
-            // No opponent yet, add this player to the queue
-            redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(playerId));
+            // Check if playerId already exists in the queue
+            List<String> queue = redisTemplate.opsForList().range(QUEUE_KEY, 0, -1);
+            if (queue != null && !queue.contains(String.valueOf(playerId))) {
+                // No opponent yet, add this player to the queue
+                redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(playerId));
+            }
             return new QueueResponse(null, WAITING_FOR_OPPONENT);
         }
     }

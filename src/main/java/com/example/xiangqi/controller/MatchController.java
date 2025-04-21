@@ -26,10 +26,20 @@ public class MatchController {
         return buildResponse(HttpStatus.OK, "Board state fetch successfully.", matchService.getMatchStateById(matchId));
     }
 
+    @PostMapping("/{matchId}/ready")
+    public ResponseEntity<ResponseObject> readyMatch(@PathVariable Long matchId) {
+        // Ready match
+        matchService.ready(matchId);
+        // Response
+        return buildResponse(HttpStatus.OK, "Ready match successfully.", null);
+    }
+
     @PostMapping("/{matchId}/move")
     public ResponseEntity<ResponseObject> move(@PathVariable Long matchId, @RequestBody @Valid MoveRequest moveRequest) {
         // Handle move request
-        return buildResponse(HttpStatus.OK, "Move request successfully.", matchService.move(matchId, moveRequest));
+        matchService.move(matchId, moveRequest);
+        // Response
+        return buildResponse(HttpStatus.OK, "Move request successfully.", null);
     }
 
     @PutMapping("/{matchId}/resign")

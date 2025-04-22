@@ -18,6 +18,14 @@ public class MatchStateResponse {
 
     Long turn;
 
+    String redPlayerName;
+
+    String blackPlayerName;
+
+    Integer redPlayerRating;
+
+    Integer blackPlayerRating;
+
     Long redPlayerTimeLeft;
 
     Long blackPlayerTimeLeft;

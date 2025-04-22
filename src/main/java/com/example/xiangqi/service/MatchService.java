@@ -44,14 +44,14 @@ public class MatchService {
 	public Long createMatch(Long player1Id, Long player2Id) {
 		MatchEntity matchEntity = new MatchEntity();
 
+		// Find the two players
+		PlayerEntity player1 = playerRepository.findById(player1Id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		PlayerEntity player2 = playerRepository.findById(player2Id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
 		// Randomly assign colors
 		boolean firstIsRed = Math.random() < 0.5;
-		matchEntity.setRedPlayerEntity(firstIsRed
-				? playerRepository.getReferenceById(player1Id)
-				: playerRepository.getReferenceById(player2Id));
-		matchEntity.setBlackPlayerEntity(firstIsRed
-				? playerRepository.getReferenceById(player2Id)
-				: playerRepository.getReferenceById(player1Id));
+		matchEntity.setRedPlayerEntity(firstIsRed ? player1 : player2);
+		matchEntity.setBlackPlayerEntity(firstIsRed ? player2: player1);
 
 		matchRepository.save(matchEntity);
 
@@ -64,6 +64,12 @@ public class MatchService {
 		redisGameService.savePlayerId(matchEntity.getId(), firstIsRed ? player2Id : player1Id, false);
 		// Initial turn
 		redisGameService.saveTurn(matchEntity.getId(), firstIsRed ? player1Id : player2Id);
+		// Initial player name
+		redisGameService.savePlayerName(matchEntity.getId(), firstIsRed ? player1.getUsername() : player2.getUsername(), true);
+		redisGameService.savePlayerName(matchEntity.getId(), firstIsRed ? player2.getUsername() : player1.getUsername(), false);
+		// Initial player rating
+		redisGameService.savePlayerRating(matchEntity.getId(), firstIsRed ? player1.getRating() : player2.getRating(), true);
+		redisGameService.savePlayerRating(matchEntity.getId(), firstIsRed ? player2.getRating() : player1.getRating(), false);
 		// Initial player's time-left
 		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, true);
 		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, false);
@@ -89,6 +95,12 @@ public class MatchService {
 		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
 		// Get turn
 		Long turn = redisGameService.getTurn(matchId);
+		// Get player's name
+		String redPlayerName = redisGameService.getPlayerName(matchId, true);
+		String blackPlayerName = redisGameService.getPlayerName(matchId, false);
+		// Get player's rating
+		Integer redPlayerRating = redisGameService.getPlayerRating(matchId, true);
+		Integer blackPlayerRating = redisGameService.getPlayerRating(matchId, false);
 		// Get player's timer-left
 		Long redPlayerTimeLeft = redisGameService.getPlayerTimeLeft(matchId, true);
 		Long blackPlayerTimeLeft = redisGameService.getPlayerTimeLeft(matchId, false);
@@ -101,6 +113,10 @@ public class MatchService {
 				.redPlayerId(redPlayerId)
 				.blackPlayerId(blackPlayerId)
 				.turn(turn)
+				.redPlayerName(redPlayerName)
+				.blackPlayerName(blackPlayerName)
+				.redPlayerRating(redPlayerRating)
+				.blackPlayerRating(blackPlayerRating)
 				.redPlayerTimeLeft(redPlayerTimeLeft)
 				.blackPlayerTimeLeft(blackPlayerTimeLeft)
 				.lastMoveTime(lastMoveTime)
@@ -219,6 +235,10 @@ public class MatchService {
 		redisGameService.deletePlayerId(matchEntity.getId(), true);
 		redisGameService.deletePlayerId(matchEntity.getId(), false);
 		redisGameService.deleteTurn(matchEntity.getId());
+		redisGameService.deletePlayerName(matchEntity.getId(), true);
+		redisGameService.deletePlayerName(matchEntity.getId(), false);
+		redisGameService.deletePlayerRating(matchEntity.getId(), true);
+		redisGameService.deletePlayerRating(matchEntity.getId(), false);
 		redisGameService.deletePlayerTimeLeft(matchEntity.getId(), true);
 		redisGameService.deletePlayerTimeLeft(matchEntity.getId(), false);
 		redisGameService.deleteLastMoveTime(matchEntity.getId());

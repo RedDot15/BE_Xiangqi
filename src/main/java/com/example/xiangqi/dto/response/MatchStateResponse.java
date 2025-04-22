@@ -3,6 +3,8 @@ package com.example.xiangqi.dto.response;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.Instant;
+
 @Data
 @AllArgsConstructor
 @Builder
@@ -15,4 +17,18 @@ public class MatchStateResponse {
     Long blackPlayerId;
 
     Long turn;
+
+    String redPlayerName;
+
+    String blackPlayerName;
+
+    Integer redPlayerRating;
+
+    Integer blackPlayerRating;
+
+    Long redPlayerTimeLeft;
+
+    Long blackPlayerTimeLeft;
+
+    Instant lastMoveTime;
 }

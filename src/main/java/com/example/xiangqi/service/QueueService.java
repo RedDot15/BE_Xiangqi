@@ -15,7 +15,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -46,11 +45,10 @@ public class QueueService {
         // Get current player's rank
         Integer playerRating = playerService.getRatingById(playerId);
 
-        String opponentId = null;
-
         // Wait to acquire lock
         acquireLock();
 
+        String opponentId = null;
         try {
             // Browse for opponent with equivalent rank
             Long listSize = redisTemplate.opsForList().size(QUEUE_KEY);
@@ -110,12 +108,12 @@ public class QueueService {
         }
     }
 
-    private boolean acquireLock() {
+    private void acquireLock() {
         while (true) {
             // Try to set the lock with a timeout
             Boolean success = redisTemplate.opsForValue().setIfAbsent(LOCK_KEY, "locked", LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (success != null && success) {
-                return true;
+                return;
             }
             try {
                 Thread.sleep(RETRY_DELAY_MILLIS);

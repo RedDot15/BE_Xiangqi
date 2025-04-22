@@ -23,6 +23,7 @@ public enum ErrorCode {
     UNQUEUE_INVALID(HttpStatus.CONFLICT, "Unqueue is invalid."),
     // Match
     MATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Match not found."),
+    MATCH_READY_INVALID(HttpStatus.FORBIDDEN, "You are not the player of this match."),
     // Board State
     BOARD_STATE_SERIALIZED_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize board state"),
     BOARD_STATE_PARSING_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "Error parsing board state from Redis"),

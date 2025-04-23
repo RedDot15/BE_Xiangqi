@@ -9,6 +9,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
@@ -20,6 +24,14 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 public class MatchController {
     MatchService matchService;
 
+    @PostMapping("/ai")
+    public ResponseEntity<ResponseObject> createMatchAgainstAI() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        // Get playerId from token
+        Long playerId = jwt.getClaim("uid");
+        return buildResponse(HttpStatus.OK, "MATCH_CREATED_WITH_AI", matchService.createMatchWithAI(playerId));
+    }
     @GetMapping("/{matchId}")
     public ResponseEntity<ResponseObject> getMatch(@PathVariable Long matchId) {
         // Fetch board state

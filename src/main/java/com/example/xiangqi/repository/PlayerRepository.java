@@ -15,4 +15,11 @@ public interface PlayerRepository extends JpaRepository<PlayerEntity, Long> {
 
     @Query("SELECT p.rating FROM PlayerEntity p WHERE p.id = :id")
     Optional<Integer> findRatingById(@NotNull Long id);
+
+    @Query("SELECT p.id FROM PlayerEntity p WHERE p.role = 'AI'")
+    Optional<Long> findAiPlayerId();
+
+    @Query("SELECT p.role FROM PlayerEntity p WHERE p.id = :id")
+    Optional<String> findRoleById(@NotNull Long id);
+
 }

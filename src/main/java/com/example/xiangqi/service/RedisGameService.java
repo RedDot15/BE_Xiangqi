@@ -23,11 +23,13 @@ import java.util.concurrent.TimeUnit;
     private static final String BOARD_KEY_PREFIX = "match:%d:board:";
     private static final String PLAYER_KEY_PREFIX = "match:%d:%sPlayer:id:";
     private static final String TURN_KEY_PREFIX = "match:%d:turn:";
-    private static final String PLAYER_TIME_KEY_PREFIX = "match:%d:%sPlayer:timeLeft:";
+    private static final String PLAYER_TOTAL_TIME_KEY_PREFIX = "match:%d:%sPlayer:totalTimeLeft:";
     private static final String PLAYER_NAME_KEY_PREFIX = "match:%d:%sPlayer:name:";
     private static final String PLAYER_RATING_KEY_PREFIX = "match:%d:%sPlayer:rating:";
     private static final String LAST_MOVE_TIME_KEY_PREFIX = "match:%d:lastMoveTime:";
     private static final String PLAYER_READY_STATUS_KEY_PREFIX = "match:%d:%sPlayer:readyStatus:";
+    private static final String PLAYER_TURN_TIME_EXPIRATION_KEY = "match:%d:turnTimeExpiration:";
+    private static final String PLAYER_TOTAL_TIME_EXPIRATION_KEY = "match:%d:totalTimeExpiration:";
     private static final String MATCH_INITIAL_LOCK_KEY = "lock:matchInitial:match:%d";
 
     private static final long LOCK_TIMEOUT_SECONDS = 10;
@@ -54,8 +56,8 @@ import java.util.concurrent.TimeUnit;
         redisTemplate.opsForValue().set(String.format(PLAYER_RATING_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"), rating);
     }
 
-    public void savePlayerTimeLeft(Long matchId, Long timeLeft, boolean isRedPlayer) {
-        redisTemplate.opsForValue().set(String.format(PLAYER_TIME_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"), timeLeft);
+    public void savePlayerTotalTimeLeft(Long matchId, Long timeLeft, boolean isRedPlayer) {
+        redisTemplate.opsForValue().set(String.format(PLAYER_TOTAL_TIME_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"), timeLeft);
     }
 
     public void saveLastMoveTime(Long matchId, Instant time) {
@@ -64,6 +66,16 @@ import java.util.concurrent.TimeUnit;
 
     public void savePlayerReadyStatus(Long matchId, boolean isRedPlayer, boolean readyStatus) {
         redisTemplate.opsForValue().set(String.format(PLAYER_READY_STATUS_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"), readyStatus);
+    }
+
+    public void savePlayerTurnTimeExpiration(Long matchId, Long timeExpiration) {
+        String key = String.format(PLAYER_TURN_TIME_EXPIRATION_KEY, matchId);
+        redisTemplate.opsForValue().set(key, timeExpiration, timeExpiration, TimeUnit.MILLISECONDS);
+    }
+
+    public void savePlayerTotalTimeExpiration(Long matchId, Long timeExpiration) {
+        String key = String.format(PLAYER_TOTAL_TIME_EXPIRATION_KEY, matchId);
+        redisTemplate.opsForValue().set(key, timeExpiration, timeExpiration, TimeUnit.MILLISECONDS);
     }
 
     public void acquireMatchInitialLock(Long matchId) {
@@ -103,8 +115,8 @@ import java.util.concurrent.TimeUnit;
         return (Integer) Objects.requireNonNull(redisTemplate.opsForValue().get(String.format(PLAYER_RATING_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black")));
     }
 
-    public Long getPlayerTimeLeft(Long matchId, boolean isRedPlayer) {
-        return ((Number) Objects.requireNonNull(redisTemplate.opsForValue().get(String.format(PLAYER_TIME_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black")))).longValue();
+    public Long getPlayerTotalTimeLeft(Long matchId, boolean isRedPlayer) {
+        return ((Number) Objects.requireNonNull(redisTemplate.opsForValue().get(String.format(PLAYER_TOTAL_TIME_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black")))).longValue();
     }
 
     public Instant getLastMoveTime(Long matchId) {
@@ -137,8 +149,8 @@ import java.util.concurrent.TimeUnit;
         redisTemplate.delete(String.format(PLAYER_RATING_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"));
     }
 
-    public void deletePlayerTimeLeft(Long matchId, boolean isRedPlayer) {
-        redisTemplate.delete(String.format(PLAYER_TIME_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"));
+    public void deleteTotalPlayerTimeLeft(Long matchId, boolean isRedPlayer) {
+        redisTemplate.delete(String.format(PLAYER_TOTAL_TIME_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"));
     }
 
     public void deleteLastMoveTime(Long matchId) {
@@ -147,6 +159,14 @@ import java.util.concurrent.TimeUnit;
 
     public void deletePlayerReadyStatus(Long matchId, boolean isRedPlayer) {
         redisTemplate.delete(String.format(PLAYER_READY_STATUS_KEY_PREFIX, matchId, isRedPlayer ? "red" : "black"));
+    }
+
+    public void deletePlayerTurnTimeExpiration(Long matchId) {
+        redisTemplate.delete(String.format(PLAYER_TURN_TIME_EXPIRATION_KEY, matchId));
+    }
+
+    public void deletePlayerTotalTimeExpiration(Long matchId) {
+        redisTemplate.delete(String.format(PLAYER_TOTAL_TIME_EXPIRATION_KEY, matchId));
     }
 
     public void releaseMatchInitialLock(Long matchId) {

@@ -40,6 +40,9 @@ public class MatchService {
 
 	private static final String MATCH_SUCCESS = "MATCH_FOUND";
 	private static final long INITIAL_TIME_MS = 60_000 * 15;
+	private static final long PLAYER_TURN_TIME_EXPIRATION = 60_000 * 1;
+	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
+
 
 	public Long createMatch(Long player1Id, Long player2Id) {
 		MatchEntity matchEntity = new MatchEntity();
@@ -70,12 +73,14 @@ public class MatchService {
 		// Initial player rating
 		redisGameService.savePlayerRating(matchEntity.getId(), firstIsRed ? player1.getRating() : player2.getRating(), true);
 		redisGameService.savePlayerRating(matchEntity.getId(), firstIsRed ? player2.getRating() : player1.getRating(), false);
-		// Initial player's time-left
-		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, true);
-		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, false);
+		// Initial player's total time-left
+		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, true);
+		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, false);
 		// Initial player's ready-status
 		redisGameService.savePlayerReadyStatus(matchEntity.getId(), true, false);
 		redisGameService.savePlayerReadyStatus(matchEntity.getId(), false, false);
+		// Initial player's turn time-expiration
+		redisGameService.savePlayerTurnTimeExpiration(matchEntity.getId(), PLAYER_TURN_TIME_EXPIRATION);
 
 		// Notify players via WebSocket
 		messagingTemplate.convertAndSend("/topic/queue/player/" + player1Id,
@@ -102,8 +107,8 @@ public class MatchService {
 		Integer redPlayerRating = redisGameService.getPlayerRating(matchId, true);
 		Integer blackPlayerRating = redisGameService.getPlayerRating(matchId, false);
 		// Get player's timer-left
-		Long redPlayerTimeLeft = redisGameService.getPlayerTimeLeft(matchId, true);
-		Long blackPlayerTimeLeft = redisGameService.getPlayerTimeLeft(matchId, false);
+		Long redPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, true);
+		Long blackPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, false);
 		// Get last-move's time
 		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
 
@@ -159,6 +164,10 @@ public class MatchService {
 				redisGameService.saveLastMoveTime(matchId, Instant.now());
 				// Get match state
 				MatchStateResponse matchStateResponse = getMatchStateById(matchId);
+				// Set Time Expiration
+				redisGameService.savePlayerTurnTimeExpiration(matchId, PLAYER_TURN_TIME_EXPIRATION);
+				redisGameService.savePlayerTotalTimeExpiration(matchId, PLAYER_TOTAL_TIME_EXPIRATION);
+
 				// Notify both player: The match is start
 				messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
 						new ResponseObject("ok", "The match is start.", matchStateResponse));
@@ -179,8 +188,8 @@ public class MatchService {
 		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
 		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
 		Long turn = redisGameService.getTurn(matchId);
-		Long redPlayerTimeLeft = redisGameService.getPlayerTimeLeft(matchId, true);
-		Long blackPlayerTimeLeft = redisGameService.getPlayerTimeLeft(matchId, false);
+		Long redPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, true);
+		Long blackPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, false);
 		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
 
 		// Move validate
@@ -194,61 +203,20 @@ public class MatchService {
 		applyMove(matchId, redPlayerId, blackPlayerId, turn, boardState, moveRequest, redPlayerTimeLeft, blackPlayerTimeLeft, lastMoveTime);
 	}
 
-	public MatchResultResponse resign(Long matchId) {
+	public void resign(Long matchId) {
 		// Get Jwt token from Context
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		Jwt jwt = (Jwt) authentication.getPrincipal();
 		// Get userId from token
 		Long userId = jwt.getClaim("uid");
 
-		// Get PlayerId
-		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
 		// Get current turn
 		Long turn = redisGameService.getTurn(matchId);
 
 		// Not in your turn
 		if (!userId.equals(turn)) throw new AppException(ErrorCode.INVALID_RESIGN);
 
-		boolean	isRed = turn.equals(redPlayerId);
-
-		// Update match info
-		MatchEntity matchEntity = matchRepository.findById(matchId)
-				.orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
-		matchEntity.setResult(isRed ? "Black Player Win" : "Red Player Win"); // Opponent wins
-		matchEntity.setEndTime(Instant.now());
-		matchRepository.save(matchEntity);
-
-		// Update red's elo
-		PlayerEntity redPlayerEntity = playerRepository.findById(redPlayerId)
-				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-		redPlayerEntity.setRating(isRed ? redPlayerEntity.getRating() - 10 : redPlayerEntity.getRating() + 10);
-		playerRepository.save(redPlayerEntity);
-		// Update black's elo
-		PlayerEntity blackPlayerEntity = playerRepository.findById(blackPlayerId)
-				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-		redPlayerEntity.setRating(isRed ? blackPlayerEntity.getRating() + 10 : blackPlayerEntity.getRating() - 10);
-		playerRepository.save(blackPlayerEntity);
-
-		// Delete match state
-		redisGameService.deleteBoardState(matchEntity.getId());
-		redisGameService.deletePlayerId(matchEntity.getId(), true);
-		redisGameService.deletePlayerId(matchEntity.getId(), false);
-		redisGameService.deleteTurn(matchEntity.getId());
-		redisGameService.deletePlayerName(matchEntity.getId(), true);
-		redisGameService.deletePlayerName(matchEntity.getId(), false);
-		redisGameService.deletePlayerRating(matchEntity.getId(), true);
-		redisGameService.deletePlayerRating(matchEntity.getId(), false);
-		redisGameService.deletePlayerTimeLeft(matchEntity.getId(), true);
-		redisGameService.deletePlayerTimeLeft(matchEntity.getId(), false);
-		redisGameService.deleteLastMoveTime(matchEntity.getId());
-		redisGameService.deletePlayerReadyStatus(matchEntity.getId(), true);
-		redisGameService.deletePlayerReadyStatus(matchEntity.getId(), false);
-
-		messagingTemplate.convertAndSend("/topic/match/player/" + (isRed ? blackPlayerId : redPlayerId),
-				new ResponseObject("ok", "You win the match", new MatchResultResponse("WIN", isRed ? blackPlayerEntity.getRating() : redPlayerEntity.getRating())));
-
-		return new MatchResultResponse("LOSE", isRed ? redPlayerEntity.getRating() : blackPlayerEntity.getRating());
+		endMatch(matchId, turn);
 	}
 
 	private void applyMove(Long matchId, Long redPlayerId, Long blackPlayerId, Long currentTurn, String[][] boardState, MoveRequest moveRequest, Long redPlayerTimeLeft, Long blackPlayerTimeLeft, Instant lastMoveTime) {
@@ -268,17 +236,119 @@ public class MatchService {
 		Long nextTurn = isRedPlayer ? blackPlayerId : redPlayerId;
 		redisGameService.saveTurn(matchId, nextTurn);
 
-		// Current player's time-left
+		// Get current player's total time-left
 		Long currentPlayerTimeLeft = isRedPlayer ? redPlayerTimeLeft : blackPlayerTimeLeft;
 		// Update player's time-left
-		redisGameService.savePlayerTimeLeft(matchId,
+		redisGameService.savePlayerTotalTimeLeft(matchId,
 				currentPlayerTimeLeft - (Instant.now().toEpochMilli()-lastMoveTime.toEpochMilli()), isRedPlayer);
 
 		// Update Last Move Time
 		redisGameService.saveLastMoveTime(matchId, Instant.now());
 
+		// Get opponent player's total time-left
+		Long opponentPlayerTimeLeft = isRedPlayer ? blackPlayerTimeLeft : redPlayerTimeLeft;
+
+		// Set Time Expiration
+		redisGameService.savePlayerTurnTimeExpiration(matchId, PLAYER_TURN_TIME_EXPIRATION);
+		redisGameService.savePlayerTotalTimeExpiration(matchId, opponentPlayerTimeLeft);
+
 		// Notify players via WebSocket
 		messagingTemplate.convertAndSend("/topic/match/player/" + (isRedPlayer ? blackPlayerId : redPlayerId),
 				new ResponseObject("ok", "Opponent player has moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
+	}
+
+	public void handleTimeout(Long matchId) {
+		// Get lastMoveTime if the game is start or not
+		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
+
+		if (lastMoveTime != null) {
+			endMatch(matchId, redisGameService.getTurn(matchId));
+		} else {
+			cancelMatch(matchId);
+		}
+	}
+
+	private void endMatch(Long matchId, Long turn) {
+		// Get PlayerId
+		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
+		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
+
+		// Get player's faction
+		boolean	isRed = turn.equals(redPlayerId);
+
+		// Update match info
+		MatchEntity matchEntity = matchRepository.findById(matchId)
+				.orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
+		matchEntity.setResult(isRed ? "Black Player Win" : "Red Player Win"); // Opponent wins
+		matchEntity.setEndTime(Instant.now());
+		matchRepository.save(matchEntity);
+
+		// Update red's elo
+		PlayerEntity redPlayerEntity = playerRepository.findById(redPlayerId)
+				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		redPlayerEntity.setRating(isRed ? redPlayerEntity.getRating() - 10 : redPlayerEntity.getRating() + 10);
+		playerRepository.save(redPlayerEntity);
+		// Update black's elo
+		PlayerEntity blackPlayerEntity = playerRepository.findById(blackPlayerId)
+				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		blackPlayerEntity.setRating(isRed ? blackPlayerEntity.getRating() + 10 : blackPlayerEntity.getRating() - 10);
+		playerRepository.save(blackPlayerEntity);
+
+		// Delete match state
+		redisGameService.deleteBoardState(matchEntity.getId());
+		redisGameService.deletePlayerId(matchEntity.getId(), true);
+		redisGameService.deletePlayerId(matchEntity.getId(), false);
+		redisGameService.deleteTurn(matchEntity.getId());
+		redisGameService.deletePlayerName(matchEntity.getId(), true);
+		redisGameService.deletePlayerName(matchEntity.getId(), false);
+		redisGameService.deletePlayerRating(matchEntity.getId(), true);
+		redisGameService.deletePlayerRating(matchEntity.getId(), false);
+		redisGameService.deleteTotalPlayerTimeLeft(matchEntity.getId(), true);
+		redisGameService.deleteTotalPlayerTimeLeft(matchEntity.getId(), false);
+		redisGameService.deleteLastMoveTime(matchEntity.getId());
+		redisGameService.deletePlayerReadyStatus(matchEntity.getId(), true);
+		redisGameService.deletePlayerReadyStatus(matchEntity.getId(), false);
+		redisGameService.deletePlayerTurnTimeExpiration(matchEntity.getId());
+		redisGameService.deletePlayerTotalTimeExpiration(matchEntity.getId());
+
+		messagingTemplate.convertAndSend("/topic/match/player/" + (isRed ? blackPlayerId : redPlayerId),
+				new ResponseObject("ok", "Match finished.", new MatchResultResponse("WIN", +10)));
+		messagingTemplate.convertAndSend("/topic/match/player/" + (isRed ? redPlayerId : blackPlayerId),
+				new ResponseObject("ok", "Match finished.", new MatchResultResponse("LOSE", -10)));
+	}
+
+	private void cancelMatch(Long matchId) {
+		// Get PlayerId
+		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
+		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
+
+		// Update match info
+		MatchEntity matchEntity = matchRepository.findById(matchId)
+				.orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
+		matchEntity.setResult("Match cancel."); // Opponent wins
+		matchEntity.setEndTime(Instant.now());
+		matchRepository.save(matchEntity);
+
+		// Delete match state
+		redisGameService.deleteBoardState(matchEntity.getId());
+		redisGameService.deletePlayerId(matchEntity.getId(), true);
+		redisGameService.deletePlayerId(matchEntity.getId(), false);
+		redisGameService.deleteTurn(matchEntity.getId());
+		redisGameService.deletePlayerName(matchEntity.getId(), true);
+		redisGameService.deletePlayerName(matchEntity.getId(), false);
+		redisGameService.deletePlayerRating(matchEntity.getId(), true);
+		redisGameService.deletePlayerRating(matchEntity.getId(), false);
+		redisGameService.deleteTotalPlayerTimeLeft(matchEntity.getId(), true);
+		redisGameService.deleteTotalPlayerTimeLeft(matchEntity.getId(), false);
+		redisGameService.deleteLastMoveTime(matchEntity.getId());
+		redisGameService.deletePlayerReadyStatus(matchEntity.getId(), true);
+		redisGameService.deletePlayerReadyStatus(matchEntity.getId(), false);
+		redisGameService.deletePlayerTurnTimeExpiration(matchEntity.getId());
+		redisGameService.deletePlayerTotalTimeExpiration(matchEntity.getId());
+
+		messagingTemplate.convertAndSend("/topic/match/player/" + blackPlayerId,
+				new ResponseObject("ok", "Match cancel.", new MatchResultResponse("CANCEL", null)));
+		messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
+				new ResponseObject("ok", "Match cancel.", new MatchResultResponse("CANCEL", null)));
 	}
 }

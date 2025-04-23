@@ -13,5 +13,5 @@ import lombok.experimental.FieldDefaults;
 public class MatchResultResponse {
     String result;
 
-    Integer updatedRating;
+    Integer ratingChange;
 }

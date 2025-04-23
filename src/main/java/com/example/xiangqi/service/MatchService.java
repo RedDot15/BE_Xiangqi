@@ -1,5 +1,6 @@
 package com.example.xiangqi.service;
 
+import com.example.xiangqi.dto.model.Position;
 import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.dto.response.MatchResultResponse;
 import com.example.xiangqi.dto.response.MatchStateResponse;
@@ -19,13 +20,21 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -91,6 +100,51 @@ public class MatchService {
 		return matchEntity.getId();
 	}
 
+	public Long createMatchWithAI(Long playerId) {
+		MatchEntity matchEntity = new MatchEntity();
+
+		Long aiId = playerRepository.findAiPlayerId()
+				.orElseThrow(() -> new RuntimeException("AI player not found"));
+		PlayerEntity player1 = playerRepository.findById(playerId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		PlayerEntity player2 = playerRepository.findById(aiId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		// Gán người chơi là Red, AI là Black
+		matchEntity.setRedPlayerEntity(playerRepository.getReferenceById(playerId));
+		matchEntity.setBlackPlayerEntity(playerRepository.getReferenceById(aiId)); // AI
+
+		matchRepository.save(matchEntity);
+
+		// REDIS: Board, Turn, Thời gian...
+		String initialBoard = BoardUtils.getInitialBoardState();
+		redisGameService.saveBoardStateJson(matchEntity.getId(), initialBoard);
+
+		// Gán PlayerID: người chơi là RED, AI là BLACK
+		redisGameService.savePlayerId(matchEntity.getId(), playerId, true);
+		redisGameService.savePlayerId(matchEntity.getId(), aiId, false);
+
+		redisGameService.savePlayerName(matchEntity.getId(), player1.getUsername(), true);
+		redisGameService.savePlayerName(matchEntity.getId(), player2.getUsername(), false);
+
+		// Gán rating của người chơi và AI
+		redisGameService.savePlayerRating(matchEntity.getId(), player1.getRating(), true);
+		redisGameService.savePlayerRating(matchEntity.getId(), player2.getRating(), false);
+		// Lượt đi đầu tiên là của người chơi
+		redisGameService.saveTurn(matchEntity.getId(), playerId);
+
+		// Gán thời gian mặc định cho cả hai bên
+		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, true);
+		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, false);
+
+		// Gán trạng thái ready ban đầu
+		redisGameService.savePlayerReadyStatus(matchEntity.getId(), true, false);
+		redisGameService.savePlayerReadyStatus(matchEntity.getId(), false, false);
+
+		// Thông báo qua WebSocket nếu cần
+//		messagingTemplate.convertAndSend("/topic/queue/player/" + playerId,
+//				new ResponseObject("ok", "Match vs AI created.", new QueueResponse(matchEntity.getId(), "MATCH_CREATED_WITH_AI")));
+
+		return matchEntity.getId();
+	}
+
 	public MatchStateResponse getMatchStateById(Long matchId) {
 		// Retrieve match state from Redis:
 		// Get board state
@@ -148,6 +202,11 @@ public class MatchService {
 		// Update the ready status
 		redisGameService.savePlayerReadyStatus(matchId, isRedPlayer, true);
 
+		Optional<String> roleOpt = playerRepository.findRoleById(blackPlayerId);
+		if (roleOpt.isPresent() && "AI".equalsIgnoreCase(roleOpt.get())) {
+			redisGameService.savePlayerReadyStatus(matchId, false, true);
+		}
+
 		// Acquire lock
 		redisGameService.acquireMatchInitialLock(matchId);
 
@@ -193,10 +252,21 @@ public class MatchService {
 		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
 
 		// Move validate
-		if (!MoveValidator.isValidMove(boardState, redPlayerId, blackPlayerId, turn,
-				moveRequest.getFrom().getRow(), moveRequest.getFrom().getCol(), moveRequest.getTo().getRow(),
-				moveRequest.getTo().getCol())) {
-			throw new AppException(ErrorCode.INVALID_MOVE);
+		if (!isAi(blackPlayerId)) {
+			boolean isValid = MoveValidator.isValidMove(
+					boardState,
+					redPlayerId,
+					blackPlayerId,
+					turn,
+					moveRequest.getFrom().getRow(),
+					moveRequest.getFrom().getCol(),
+					moveRequest.getTo().getRow(),
+					moveRequest.getTo().getCol()
+			);
+
+			if (!isValid) {
+				throw new AppException(ErrorCode.INVALID_MOVE);
+			}
 		}
 
 		// Apply move & update Redis
@@ -255,6 +325,50 @@ public class MatchService {
 		// Notify players via WebSocket
 		messagingTemplate.convertAndSend("/topic/match/player/" + (isRedPlayer ? blackPlayerId : redPlayerId),
 				new ResponseObject("ok", "Opponent player has moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
+
+
+		if (isRedPlayer && isAi(blackPlayerId)) {
+			MoveRequest move_ai = callAiMove(boardState);
+			move(matchId,move_ai);
+		}
+	}
+
+	private boolean isAi(Long playerId) {
+		return playerRepository.findRoleById(playerId)
+				.map(role -> role.equalsIgnoreCase("AI"))
+				.orElse(false);
+	}
+	private MoveRequest callAiMove(String[][] boardState) {
+		try {
+			String url = "http://127.0.0.1:8000/next-move-pikafish";
+			RestTemplate restTemplate = new RestTemplate();
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+
+			// Gửi mảng boardState trực tiếp dưới dạng JSON
+			Map<String, Object> boardWrapper = new HashMap<>();
+			boardWrapper.put("board", boardState);  // Truyền thẳng mảng 2 chiều boardState
+//			boardWrapper.put("depth", 6);
+
+			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(boardWrapper, headers);
+
+			// Gọi API Python
+			ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+
+			if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+				Map<String, Integer> moveMap = response.getBody();
+
+				Position from = new Position(moveMap.get("from_row"), moveMap.get("from_col"));
+				Position to = new Position(moveMap.get("to_row"), moveMap.get("to_col"));
+
+				return new MoveRequest(from, to);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return null; // hoặc throw nếu cần
 	}
 
 	public void handleTimeout(Long matchId) {

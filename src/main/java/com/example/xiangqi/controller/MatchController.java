@@ -56,8 +56,9 @@ public class MatchController {
 
     @PutMapping("/{matchId}/resign")
     public ResponseEntity<ResponseObject> resignGame(@PathVariable Long matchId) {
+        // Handle resign request
+        matchService.resign(matchId);
         // Handle move request
-        return buildResponse(HttpStatus.OK, "Move request successfully.", matchService.resign(matchId));
+        return buildResponse(HttpStatus.OK, "Move request successfully.", null);
     }
-
 }

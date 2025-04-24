@@ -30,7 +30,7 @@ public enum ErrorCode {
     // Move
     INVALID_MOVE(HttpStatus.CONFLICT, "Invalid move."),
     // Resign
-    INVALID_RESIGN(HttpStatus.FORBIDDEN, "This is not your turn."),
+    INVALID_RESIGN(HttpStatus.FORBIDDEN, "You are not the player of this match."),
     ;
 
     HttpStatus httpStatus;

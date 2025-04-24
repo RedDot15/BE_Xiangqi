@@ -48,7 +48,7 @@ public class MatchService {
 	RedisGameService redisGameService;
 
 	private static final String MATCH_SUCCESS = "MATCH_FOUND";
-	private static final long INITIAL_TIME_MS = 60_000 * 15;
+	private static final long PLAYER_TOTAL_TIME_LEFT = 60_000 * 15;
 	private static final long PLAYER_TURN_TIME_EXPIRATION = 60_000 * 1;
 	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
 
@@ -83,8 +83,8 @@ public class MatchService {
 		redisGameService.savePlayerRating(matchEntity.getId(), firstIsRed ? player1.getRating() : player2.getRating(), true);
 		redisGameService.savePlayerRating(matchEntity.getId(), firstIsRed ? player2.getRating() : player1.getRating(), false);
 		// Initial player's total time-left
-		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, true);
-		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, false);
+		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, true);
+		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, false);
 		// Initial player's ready-status
 		redisGameService.savePlayerReadyStatus(matchEntity.getId(), true, false);
 		redisGameService.savePlayerReadyStatus(matchEntity.getId(), false, false);
@@ -121,26 +121,27 @@ public class MatchService {
 		redisGameService.savePlayerId(matchEntity.getId(), playerId, true);
 		redisGameService.savePlayerId(matchEntity.getId(), aiId, false);
 
+		// Lượt đi đầu tiên là của người chơi
+		redisGameService.saveTurn(matchEntity.getId(), playerId);
+
+		// Gán tên người chơi và AI
 		redisGameService.savePlayerName(matchEntity.getId(), player1.getUsername(), true);
 		redisGameService.savePlayerName(matchEntity.getId(), player2.getUsername(), false);
 
 		// Gán rating của người chơi và AI
 		redisGameService.savePlayerRating(matchEntity.getId(), player1.getRating(), true);
 		redisGameService.savePlayerRating(matchEntity.getId(), player2.getRating(), false);
-		// Lượt đi đầu tiên là của người chơi
-		redisGameService.saveTurn(matchEntity.getId(), playerId);
 
 		// Gán thời gian mặc định cho cả hai bên
-		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, true);
-		redisGameService.savePlayerTimeLeft(matchEntity.getId(), INITIAL_TIME_MS, false);
+		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, true);
+		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, false);
 
 		// Gán trạng thái ready ban đầu
 		redisGameService.savePlayerReadyStatus(matchEntity.getId(), true, false);
 		redisGameService.savePlayerReadyStatus(matchEntity.getId(), false, false);
 
-		// Thông báo qua WebSocket nếu cần
-//		messagingTemplate.convertAndSend("/topic/queue/player/" + playerId,
-//				new ResponseObject("ok", "Match vs AI created.", new QueueResponse(matchEntity.getId(), "MATCH_CREATED_WITH_AI")));
+		// Initial player's turn time-expiration
+		redisGameService.savePlayerTurnTimeExpiration(matchEntity.getId(), PLAYER_TURN_TIME_EXPIRATION);
 
 		return matchEntity.getId();
 	}
@@ -280,13 +281,14 @@ public class MatchService {
 		// Get userId from token
 		Long userId = jwt.getClaim("uid");
 
-		// Get current turn
-		Long turn = redisGameService.getTurn(matchId);
+		// Get player ID
+		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
+		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
 
-		// Not in your turn
-		if (!userId.equals(turn)) throw new AppException(ErrorCode.INVALID_RESIGN);
+		if (!userId.equals(redPlayerId) && !userId.equals(blackPlayerId))
+			throw new AppException(ErrorCode.MATCH_READY_INVALID);
 
-		endMatch(matchId, turn);
+		endMatch(matchId, userId.equals(redPlayerId) ? redPlayerId : blackPlayerId);
 	}
 
 	private void applyMove(Long matchId, Long redPlayerId, Long blackPlayerId, Long currentTurn, String[][] boardState, MoveRequest moveRequest, Long redPlayerTimeLeft, Long blackPlayerTimeLeft, Instant lastMoveTime) {
@@ -338,6 +340,7 @@ public class MatchService {
 				.map(role -> role.equalsIgnoreCase("AI"))
 				.orElse(false);
 	}
+
 	private MoveRequest callAiMove(String[][] boardState) {
 		try {
 			String url = "http://127.0.0.1:8000/next-move-pikafish";
@@ -382,13 +385,13 @@ public class MatchService {
 		}
 	}
 
-	private void endMatch(Long matchId, Long turn) {
+	private void endMatch(Long matchId, Long resignPlayerId) {
 		// Get PlayerId
 		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
 		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
 
 		// Get player's faction
-		boolean	isRed = turn.equals(redPlayerId);
+		boolean	isRed = resignPlayerId.equals(redPlayerId);
 
 		// Update match info
 		MatchEntity matchEntity = matchRepository.findById(matchId)

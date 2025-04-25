@@ -2,7 +2,10 @@ package com.example.xiangqi.dto.request;
 
 import com.example.xiangqi.dto.model.Position;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
 @Data

@@ -2,7 +2,6 @@ package com.example.xiangqi.service;
 
 import com.example.xiangqi.entity.UserEntity;
 import com.example.xiangqi.repository.InvalidatedTokenRepository;
-import com.example.xiangqi.repository.PlayerRepository;
 import com.example.xiangqi.repository.UserRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -18,7 +17,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;

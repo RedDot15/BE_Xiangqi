@@ -1,6 +1,5 @@
 package com.example.xiangqi.service;
 
-import com.example.xiangqi.dto.response.QueueResponse;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import jakarta.transaction.Transactional;
@@ -29,8 +28,6 @@ public class QueueService {
 
     private static final String QUEUE_KEY = "waitingPlayers:";
     private static final String LOCK_KEY = "lock:waitingPlayers:";
-    private static final String MATCH_SUCCESS = "MATCH_FOUND";
-    private static final String WAITING_FOR_OPPONENT = "WAITING_FOR_OPPONENT";
 
     private static final long LOCK_TIMEOUT_SECONDS = 10;
     private static final long RETRY_DELAY_MILLIS = 100;

@@ -21,8 +21,10 @@ public class QueueController {
 
 	@PostMapping("/join")
 	public ResponseEntity<ResponseObject> joinQueue() {
+		// Queue
+		queueService.queue();
 		// Fetch & Return all users
-		return buildResponse(HttpStatus.OK, "Queueing completed.", queueService.queue());
+		return buildResponse(HttpStatus.OK, "Queueing completed.", null);
 	}
 
 	@DeleteMapping("/cancel")

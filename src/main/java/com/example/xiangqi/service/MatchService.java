@@ -53,7 +53,7 @@ public class MatchService {
 	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
 
 
-	public Long createMatch(Long player1Id, Long player2Id) {
+	public void createMatch(Long player1Id, Long player2Id) {
 		MatchEntity matchEntity = new MatchEntity();
 
 		// Find the two players
@@ -96,8 +96,6 @@ public class MatchService {
 				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
 		messagingTemplate.convertAndSend("/topic/queue/player/" + player2Id,
 				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
-
-		return matchEntity.getId();
 	}
 
 	public Long createMatchWithAI(Long playerId) {

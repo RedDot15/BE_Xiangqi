@@ -35,7 +35,7 @@ public class QueueService {
     private static final long LOCK_TIMEOUT_SECONDS = 10;
     private static final long RETRY_DELAY_MILLIS = 100;
 
-    public QueueResponse queue() {
+    public void queue() {
         // Get Jwt token from Context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Jwt jwt = (Jwt) authentication.getPrincipal();
@@ -73,8 +73,7 @@ public class QueueService {
 
         if (opponentId != null) {
             // Match found! Create a new match
-            Long matchId = matchService.createMatch(Long.valueOf(opponentId), playerId);
-            return new QueueResponse(matchId, MATCH_SUCCESS);
+            matchService.createMatch(Long.valueOf(opponentId), playerId);
         } else {
             // Check if playerId already exists in the queue
             List<String> queue = redisTemplate.opsForList().range(QUEUE_KEY, 0, -1);
@@ -82,7 +81,6 @@ public class QueueService {
                 // No opponent yet, add this player to the queue
                 redisTemplate.opsForList().rightPush(QUEUE_KEY, String.valueOf(playerId));
             }
-            return new QueueResponse(null, WAITING_FOR_OPPONENT);
         }
     }
 

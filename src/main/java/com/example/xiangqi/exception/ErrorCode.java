@@ -31,6 +31,11 @@ public enum ErrorCode {
     INVALID_MOVE(HttpStatus.CONFLICT, "Invalid move."),
     // Resign
     INVALID_RESIGN(HttpStatus.FORBIDDEN, "You are not the player of this match."),
+    // Invite
+    OPPONENT_STATUS_IN_MATCH(HttpStatus.BAD_REQUEST, "This player is in match."),
+    OPPONENT_STATUS_QUEUE(HttpStatus.BAD_REQUEST, "This player is in queue."),
+    INVITATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "This invitation already exists."),
+    INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "This invitation does not exist."),
     ;
 
     HttpStatus httpStatus;

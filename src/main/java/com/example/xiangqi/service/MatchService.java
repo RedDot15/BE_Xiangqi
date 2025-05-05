@@ -43,17 +43,16 @@ import java.util.Optional;
 @Service
 public class MatchService {
 	MatchRepository matchRepository;
-	SimpMessagingTemplate messagingTemplate; // For WebSocket notifications
+	SimpMessagingTemplate messagingTemplate;
 	PlayerRepository playerRepository;
 	RedisGameService redisGameService;
 
-	private static final String MATCH_SUCCESS = "MATCH_FOUND";
 	private static final long PLAYER_TOTAL_TIME_LEFT = 60_000 * 15;
 	private static final long PLAYER_TURN_TIME_EXPIRATION = 60_000 * 1;
 	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
 
 
-	public void createMatch(Long player1Id, Long player2Id) {
+	public Long createMatch(Long player1Id, Long player2Id) {
 		MatchEntity matchEntity = new MatchEntity();
 
 		// Find the two players
@@ -91,11 +90,7 @@ public class MatchService {
 		// Initial player's turn time-expiration
 		redisGameService.savePlayerTurnTimeExpiration(matchEntity.getId(), PLAYER_TURN_TIME_EXPIRATION);
 
-		// Notify players via WebSocket
-		messagingTemplate.convertAndSend("/topic/queue/player/" + player1Id,
-				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
-		messagingTemplate.convertAndSend("/topic/queue/player/" + player2Id,
-				new ResponseObject("ok", "Match found.", new QueueResponse(matchEntity.getId(), MATCH_SUCCESS)));
+		return matchEntity.getId();
 	}
 
 	public Long createMatchWithAI(Long playerId) {

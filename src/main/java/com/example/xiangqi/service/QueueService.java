@@ -1,13 +1,16 @@
 package com.example.xiangqi.service;
 
+import com.example.xiangqi.dto.response.QueueResponse;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
+import com.example.xiangqi.helper.ResponseObject;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,6 +28,9 @@ public class QueueService {
     RedisTemplate<String, String> redisTemplate;
     MatchService matchService;
     PlayerService playerService;
+    SimpMessagingTemplate messagingTemplate;
+
+    private static final String MATCH_SUCCESS = "MATCH_FOUND";
 
     private static final String QUEUE_KEY = "waitingPlayers:";
     private static final String LOCK_KEY = "lock:waitingPlayers:";
@@ -70,7 +76,12 @@ public class QueueService {
 
         if (opponentId != null) {
             // Match found! Create a new match
-            matchService.createMatch(Long.valueOf(opponentId), playerId);
+            Long matchId = matchService.createMatch(Long.valueOf(opponentId), playerId);
+            // Notify players via WebSocket
+            messagingTemplate.convertAndSend("/topic/queue/player/" + opponentId,
+                    new ResponseObject("ok", "Match found.", new QueueResponse(matchId, MATCH_SUCCESS)));
+            messagingTemplate.convertAndSend("/topic/queue/player/" + playerId,
+                    new ResponseObject("ok", "Match found.", new QueueResponse(matchId, MATCH_SUCCESS)));
         } else {
             // Check if playerId already exists in the queue
             List<String> queue = redisTemplate.opsForList().range(QUEUE_KEY, 0, -1);

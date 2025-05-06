@@ -29,6 +29,15 @@ public class PlayerController {
 		return buildResponse(HttpStatus.OK, "My information fetch successfully.", playerService.getMyInfo());
 	}
 
+	@GetMapping("/")
+	public ResponseEntity<ResponseObject> getAll(
+			@RequestParam(defaultValue = "1") int page,
+			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(required = false) String role) {
+		// Fetch & Return all users
+		return buildResponse(HttpStatus.OK, "Get all player successfully.", playerService.getAll(page, size, role));
+	}
+
 	@PostMapping("/register")
 	public ResponseEntity<ResponseObject> register(
 			@Validated({Create.class, Default.class}) @RequestBody PlayerRequest playerRequest) {

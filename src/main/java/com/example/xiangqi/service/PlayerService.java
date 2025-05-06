@@ -12,11 +12,17 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -37,6 +43,15 @@ public class PlayerService {
 				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 		// Return
 		return playerMapper.toPlayerResponse(playerEntity);
+	}
+
+	public List<PlayerResponse> getAll(int page, int size, String role) {
+		// Define pageable
+		Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "rating"));
+		// Return player list
+		return playerRepository.findAll(pageable, role)
+				.stream().map(playerMapper::toPlayerResponse)
+				.collect(Collectors.toList());
 	}
 
 	public Integer getRatingById(Long id) {

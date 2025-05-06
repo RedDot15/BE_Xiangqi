@@ -1,5 +1,7 @@
 package com.example.xiangqi.controller;
 
+import com.example.xiangqi.dto.request.ChatRequest;
+import com.example.xiangqi.dto.response.ChatResponse;
 import com.example.xiangqi.entity.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
@@ -12,7 +14,10 @@ import lombok.experimental.NonFinal;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -36,6 +41,14 @@ public class WebSocketController {
         webSocketService.updateStatus(payload, headerAccessor);
         // Return
         return buildResponse(HttpStatus.OK, "Update status success.", null);
+    }
+
+    @MessageMapping("/chat")
+    public ResponseObject sendChat(ChatRequest request) {
+        // Handle message
+        webSocketService.handleChatMessage(request);
+        // Send chat message
+        return new ResponseObject("ok", "Chat sent success.", null);
     }
 
     @GetMapping("/player/{username}")

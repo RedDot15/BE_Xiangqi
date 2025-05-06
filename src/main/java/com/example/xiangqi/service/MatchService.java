@@ -1,6 +1,7 @@
 package com.example.xiangqi.service;
 
 import com.example.xiangqi.dto.model.Position;
+import com.example.xiangqi.dto.request.CreateAIMatchRequest;
 import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.dto.response.MatchResultResponse;
 import com.example.xiangqi.dto.response.MatchStateResponse;
@@ -93,11 +94,18 @@ public class MatchService {
 		return matchEntity.getId();
 	}
 
-	public Long createMatchWithAI(Long playerId) {
+	public Long createMatchWithAI(CreateAIMatchRequest request) {
 		MatchEntity matchEntity = new MatchEntity();
 
-		Long aiId = playerRepository.findAiPlayerId()
-				.orElseThrow(() -> new RuntimeException("AI player not found"));
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		Jwt jwt = (Jwt) authentication.getPrincipal();
+		Long playerId = jwt.getClaim("uid");
+
+		String mode = request.getMode();
+
+		Optional<Long> aiIdOptional = playerRepository.findIdByRole(mode); // Lấy mode từ request
+		Long aiId = aiIdOptional.orElseThrow(() -> new RuntimeException(mode + " player not found"));
+
 		PlayerEntity player1 = playerRepository.findById(playerId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 		PlayerEntity player2 = playerRepository.findById(aiId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 		// Gán người chơi là Red, AI là Black
@@ -114,6 +122,8 @@ public class MatchService {
 		redisGameService.savePlayerId(matchEntity.getId(), playerId, true);
 		redisGameService.savePlayerId(matchEntity.getId(), aiId, false);
 
+		redisGameService.saveAiMode(matchEntity.getId(), mode);
+
 		// Lượt đi đầu tiên là của người chơi
 		redisGameService.saveTurn(matchEntity.getId(), playerId);
 
@@ -128,10 +138,9 @@ public class MatchService {
 		// Gán thời gian mặc định cho cả hai bên
 		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, true);
 		redisGameService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, false);
-
 		// Gán trạng thái ready ban đầu
-		redisGameService.savePlayerReadyStatus(matchEntity.getId(), true, false);
-		redisGameService.savePlayerReadyStatus(matchEntity.getId(), false, false);
+		redisGameService.savePlayerReadyStatus(matchEntity.getId(), true, true);
+		redisGameService.savePlayerReadyStatus(matchEntity.getId(), false, true);
 
 		// Initial player's turn time-expiration
 		redisGameService.savePlayerTurnTimeExpiration(matchEntity.getId(), PLAYER_TURN_TIME_EXPIRATION);
@@ -322,22 +331,29 @@ public class MatchService {
 				new ResponseObject("ok", "Opponent player has moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 
 
-		if (isRedPlayer && isAi(blackPlayerId)) {
-			MoveRequest move_ai = callAiMove(boardState);
-			move(matchId,move_ai);
+		if (isRedPlayer) {
+			String aiMode = redisGameService.getAiMode(matchId);
+			if (aiMode != null && !aiMode.isEmpty()) {
+				MoveRequest moveAi = callAiMove(boardState, aiMode);
+				move(matchId, moveAi);
+			}
 		}
 	}
 
 	private boolean isAi(Long playerId) {
 		return playerRepository.findRoleById(playerId)
-				.map(role -> role.equalsIgnoreCase("AI"))
+				.map(role -> role.startsWith("AI"))
 				.orElse(false);
 	}
 
-	private MoveRequest callAiMove(String[][] boardState) {
+	private MoveRequest callAiMove(String[][] boardState,String aiMode) {
 		try {
-			String url = "http://127.0.0.1:8000/next-move-pikafish";
-			RestTemplate restTemplate = new RestTemplate();
+			String url = switch (aiMode) {
+                case "AI_EASY" -> "http://127.0.0.1:8000/next-move";
+                case "AI_HARD" -> "http://127.0.0.1:8000/next-move-pikafish";
+                default -> throw new IllegalArgumentException("Unknown AI mode: " + aiMode);
+            };
+            RestTemplate restTemplate = new RestTemplate();
 
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_JSON);
@@ -345,7 +361,6 @@ public class MatchService {
 			// Gửi mảng boardState trực tiếp dưới dạng JSON
 			Map<String, Object> boardWrapper = new HashMap<>();
 			boardWrapper.put("board", boardState);  // Truyền thẳng mảng 2 chiều boardState
-//			boardWrapper.put("depth", 6);
 
 			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(boardWrapper, headers);
 

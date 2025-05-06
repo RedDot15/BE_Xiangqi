@@ -1,5 +1,6 @@
 package com.example.xiangqi.controller;
 
+import com.example.xiangqi.dto.request.CreateAIMatchRequest;
 import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.helper.ResponseObject;
 import com.example.xiangqi.service.MatchService;
@@ -24,13 +25,11 @@ public class MatchController {
     MatchService matchService;
 
     @PostMapping("/ai")
-    public ResponseEntity<ResponseObject> createMatchAgainstAI() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        // Get playerId from token
-        Long playerId = jwt.getClaim("uid");
-        return buildResponse(HttpStatus.OK, "MATCH_CREATED_WITH_AI", matchService.createMatchWithAI(playerId));
+    public ResponseEntity<ResponseObject> createMatchAgainstAI(@RequestBody CreateAIMatchRequest request) {
+
+        return buildResponse(HttpStatus.OK, "MATCH_CREATED_WITH_AI", matchService.createMatchWithAI(request));
     }
+
     @GetMapping("/{matchId}")
     public ResponseEntity<ResponseObject> getMatch(@PathVariable Long matchId) {
         // Fetch board state

@@ -1,6 +1,8 @@
 package com.example.xiangqi.service;
 
 
+import com.example.xiangqi.dto.request.ChatRequest;
+import com.example.xiangqi.dto.response.ChatResponse;
 import com.example.xiangqi.dto.response.PlayerResponse;
 import com.example.xiangqi.dto.response.QueueResponse;
 import com.example.xiangqi.entity.PlayerEntity;
@@ -23,6 +25,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,6 +83,12 @@ public class WebSocketService {
                 }
             }
         }
+    }
+
+    public void handleChatMessage(ChatRequest request) {
+        // Send invitation to opponent
+        messagingTemplate.convertAndSend("/topic/chat/match/" + request.getMatchId(),
+                new ResponseObject("ok", "Message received.", new ChatResponse(request.getSender(), request.getMessage(), Instant.now())));
     }
 
     @EventListener

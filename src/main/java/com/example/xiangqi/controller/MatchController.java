@@ -23,6 +23,21 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 public class MatchController {
     MatchService matchService;
 
+    @GetMapping("/")
+    public ResponseEntity<ResponseObject> getAllFinished(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam Long userId) {
+        // Fetch match list
+        return buildResponse(HttpStatus.OK, "Matchs fetch successfully.", matchService.getAllFinished(page, size, userId));
+    }
+
+    @GetMapping("/{matchId}")
+    public ResponseEntity<ResponseObject> getMatch(@PathVariable Long matchId) {
+        // Fetch board state
+        return buildResponse(HttpStatus.OK, "Board state fetch successfully.", matchService.getMatchStateById(matchId));
+    }
+
     @PostMapping("/ai")
     public ResponseEntity<ResponseObject> createMatchAgainstAI() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -30,11 +45,6 @@ public class MatchController {
         // Get playerId from token
         Long playerId = jwt.getClaim("uid");
         return buildResponse(HttpStatus.OK, "MATCH_CREATED_WITH_AI", matchService.createMatchWithAI(playerId));
-    }
-    @GetMapping("/{matchId}")
-    public ResponseEntity<ResponseObject> getMatch(@PathVariable Long matchId) {
-        // Fetch board state
-        return buildResponse(HttpStatus.OK, "Board state fetch successfully.", matchService.getMatchStateById(matchId));
     }
 
     @PostMapping("/{matchId}/ready")

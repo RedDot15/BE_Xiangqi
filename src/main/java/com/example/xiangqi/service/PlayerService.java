@@ -1,5 +1,6 @@
 package com.example.xiangqi.service;
 
+import com.example.xiangqi.dto.request.ChangePasswordRequest;
 import com.example.xiangqi.dto.request.PlayerRequest;
 import com.example.xiangqi.dto.response.PlayerResponse;
 import com.example.xiangqi.entity.PlayerEntity;
@@ -73,14 +74,18 @@ public class PlayerService {
 		return playerMapper.toPlayerResponse(playerEntity);
 	}
 
-	@PreAuthorize(
-			"hasRole('ADMIN') or (#request.id == authentication.principal.claims['uid'])")
-	public PlayerResponse changePassword(PlayerRequest playerRequest) {
+	public PlayerResponse changePassword(ChangePasswordRequest request) {
+		// Get context
+		SecurityContext context = SecurityContextHolder.getContext();
+		String myUsername = context.getAuthentication().getName();
 		// Get old
-		PlayerEntity foundPlayerEntity =
-				playerRepository.findById(playerRequest.getId()).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		PlayerEntity foundPlayerEntity = playerRepository.findByUsername(myUsername)
+				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+		// Old password unmatched exception
+		if (!passwordEncoder.matches(request.getOldPassword(), foundPlayerEntity.getPassword()))
+			throw new AppException(ErrorCode.WRONG_PASSWORD);
 		// Change password
-		foundPlayerEntity.setPassword(passwordEncoder.encode(playerRequest.getPassword()));
+		foundPlayerEntity.setPassword(passwordEncoder.encode(request.getNewPassword()));
 		// Save & Return
 		return playerMapper.toPlayerResponse(playerRepository.save(foundPlayerEntity));
 	}

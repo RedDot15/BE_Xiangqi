@@ -14,15 +14,11 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Match(
-		fields = {"password", "confirmPassword"},
+		fields = {"newPassword", "confirmPassword"},
 		message = "These fields {fields} must match.")
-public class PlayerRequest {
-	@Null(message = "Id must not be provided during creation.")
-	Long id;
-
-	@NotBlank(message = "Username is required.")
-	@Size(min = 3, max = 20, message = "Username must be between {min} and {max} characters.")
-	String username;
+public class ChangePasswordRequest {
+	@NotBlank(message = "Old password is required.")
+	String oldPassword;
 
 	@NotBlank(message = "Password is required.")
 	@Pattern(
@@ -33,7 +29,7 @@ public class PlayerRequest {
 					+ "Password must contains at least one lower case alphabet."
 					+ "Password must contains at least one special character which includes !@#$%&*()-+=^."
 					+ "Password must not contain any white space.")
-	String password;
+	String newPassword;
 
 	@NotBlank(message = "Confirm password is required.")
 	String confirmPassword;

@@ -15,6 +15,7 @@ public enum ErrorCode {
     // Player
     USERNAME_DUPLICATE(HttpStatus.CONFLICT, "Username already exists."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found."),
+    WRONG_PASSWORD(HttpStatus.BAD_REQUEST, "Wrong password."),
     // Authentication
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "Unauthenticated error."),
     UNAUTHORIZED(HttpStatus.FORBIDDEN, "You do not have permission to perform this operation."),

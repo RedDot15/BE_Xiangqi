@@ -13,7 +13,10 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -23,6 +26,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import javax.crypto.spec.SecretKeySpec;
+import java.time.Duration;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -83,9 +87,18 @@ public class SecurityConfig {
 	@Bean
 	NimbusJwtDecoder nimbusJwtDecoder() {
 		SecretKeySpec secretKeySpec = new SecretKeySpec(SIGNER_KEY.getBytes(), "HS512");
-		return NimbusJwtDecoder.withSecretKey(secretKeySpec)
+		NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKeySpec)
 				.macAlgorithm(MacAlgorithm.HS512)
 				.build();
+
+		// Define JwtTimestampValidator with clock skew = 0
+		JwtTimestampValidator timestampValidator = new JwtTimestampValidator(Duration.ofSeconds(0));
+
+		// Set validator
+		decoder.setJwtValidator(timestampValidator);
+
+		// Return
+		return decoder;
 	}
 
 	// Providing password encode method

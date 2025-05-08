@@ -30,7 +30,7 @@ public class MatchController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam Long userId) {
         // Fetch match list
-        return buildResponse(HttpStatus.OK, "Matchs fetch successfully.", matchService.getAllFinished(page, size, userId));
+        return buildResponse(HttpStatus.OK, "Matches fetch successfully.", matchService.getAllFinished(page, size, userId));
     }
 
     @GetMapping("/{matchId}")

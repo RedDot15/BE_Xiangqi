@@ -282,26 +282,47 @@ public class MatchService {
 		Long blackPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, false);
 		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
 
-		// Move validate
-		if (!isAi(blackPlayerId)) {
-			boolean isValid = MoveValidator.isValidMove(
-					boardState,
-					redPlayerId,
-					blackPlayerId,
-					turn,
-					moveRequest.getFrom().getRow(),
-					moveRequest.getFrom().getCol(),
-					moveRequest.getTo().getRow(),
-					moveRequest.getTo().getCol()
-			);
+		// Get piece
+		String piece = boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()];
 
-			if (!isValid) {
+		if (!isAi(blackPlayerId)) {
+			// Check if the piece belongs to the current player
+			if (!isCorrectTurn(piece, redPlayerId, blackPlayerId, turn)) {
 				throw new AppException(ErrorCode.INVALID_MOVE);
 			}
 		}
 
+		// Move validate
+		boolean isValid = MoveValidator.isValidMove(
+				boardState,
+				moveRequest.getFrom().getRow(),
+				moveRequest.getFrom().getCol(),
+				moveRequest.getTo().getRow(),
+				moveRequest.getTo().getCol()
+		);
+
+		if (!isValid) {
+			throw new AppException(ErrorCode.INVALID_MOVE);
+		}
+
 		// Apply move & update Redis
 		applyMove(matchId, redPlayerId, blackPlayerId, turn, boardState, moveRequest, redPlayerTimeLeft, blackPlayerTimeLeft, lastMoveTime);
+
+		// Check if opponent has legal moves
+		String opponentColor = redPlayerId == turn ? "black" : "red";
+		if (!MoveValidator.hasLegalMoves(boardState, opponentColor))
+			endMatch(matchId, redPlayerId == turn ? blackPlayerId : redPlayerId);
+	}
+
+	private static boolean isCorrectTurn(String piece, Long redPlayerId, Long blackPlayerId, Long turn) {
+		// Get Jwt token from Context
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		Jwt jwt = (Jwt) authentication.getPrincipal();
+		// Get userId from token
+		Long userId = jwt.getClaim("uid");
+
+		return (Character.isUpperCase(piece.charAt(0)) && userId.equals(redPlayerId) && userId.equals(turn)) ||
+				(Character.isLowerCase(piece.charAt(0)) && userId.equals(blackPlayerId) && userId.equals(turn));
 	}
 
 	public void resign(Long matchId) {
@@ -355,8 +376,10 @@ public class MatchService {
 		redisGameService.savePlayerTotalTimeExpiration(matchId, opponentPlayerTimeLeft);
 
 		// Notify players via WebSocket
-		messagingTemplate.convertAndSend("/topic/match/player/" + (isRedPlayer ? blackPlayerId : redPlayerId),
-				new ResponseObject("ok", "Opponent player has moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
+		messagingTemplate.convertAndSend("/topic/match/player/" + blackPlayerId,
+				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
+		messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
+				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 
 
 		if (isRedPlayer) {

@@ -1,11 +1,27 @@
 package com.example.xiangqi.util;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-
 public class MoveValidator {
-    public static boolean isValidMove(String[][] board, Long redPlayerId, Long blackPlayerId, Long turn,
+    public static boolean hasLegalMoves(String[][] board, String playerColor) {
+        for (int fromRow = 0; fromRow < 10; fromRow++) {
+            for (int fromCol = 0; fromCol < 9; fromCol++) {
+                String piece = board[fromRow][fromCol];
+                if (!piece.isEmpty() && (playerColor.equals("red") ? isRedPiece(piece) : isBlackPiece(piece))) {
+                    // Try every possible destination
+                    for (int toRow = 0; toRow < 10; toRow++) {
+                        for (int toCol = 0; toCol < 9; toCol++) {
+                            // Check if the move is valid
+                            if (isValidMove(board, fromRow, fromCol, toRow, toCol)) {
+                                return true; // Found at least one legal move
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false; // No legal moves found
+    }
+
+    public static boolean isValidMove(String[][] board,
                                       int fromRow, int fromCol, int toRow, int toCol) {
         String piece = board[fromRow][fromCol];
 
@@ -16,11 +32,6 @@ public class MoveValidator {
 
         // Check if the piece move out of board
         if (isOutOfBoard(fromRow, fromCol, toRow, toCol)){
-            return false;
-        }
-
-        // Check if the piece belongs to the current player
-        if (!isCorrectTurn(piece, redPlayerId, blackPlayerId, turn)) {
             return false;
         }
 
@@ -37,6 +48,11 @@ public class MoveValidator {
         // Check if kings face each other after the move
         if (areKingsFacing(tempBoard)) {
             return false; // Move is invalid if kings face each other
+        }
+        // Check if the move puts the player's own king in check
+        String allyColor = isRedPiece(piece) ? "red" : "black";
+        if (isKingInCheck(tempBoard, allyColor)) {
+            return false; // Move is invalid if it puts own king in check
         }
 
         // Validate move based on the piece type
@@ -60,17 +76,6 @@ public class MoveValidator {
             return true;
 
         return false;
-    }
-
-    private static boolean isCorrectTurn(String piece, Long redPlayerId, Long blackPlayerId, Long turn) {
-        // Get Jwt token from Context
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        // Get userId from token
-        Long userId = jwt.getClaim("uid");
-
-        return (Character.isUpperCase(piece.charAt(0)) && userId.equals(redPlayerId) && userId.equals(turn)) ||
-                (Character.isLowerCase(piece.charAt(0)) && userId.equals(blackPlayerId) && userId.equals(turn));
     }
 
     private static boolean isSameColor(String piece1, String piece2) {
@@ -189,6 +194,11 @@ public class MoveValidator {
         boolean isCapture = !board[toRow][toCol].isEmpty();
         int count = countPiecesBetween(board, fromRow, fromCol, toRow, toCol);
 
+        // Check if move is horizontal or vertical
+        if (fromRow != toRow && fromCol != toCol) {
+            return false; // Diagonal moves are invalid
+        }
+
         return (isCapture && count == 1) || (!isCapture && count == 0);
     }
 
@@ -242,6 +252,72 @@ public class MoveValidator {
 
         // If no piece is blocking, kings are facing each other (illegal move)
         return true;
+    }
+
+    private static boolean isKingInCheck(String[][] board, String allyColor) {
+        // Find the allied king's position
+        int kingRow = -1;
+        int kingCol = -1;
+        for (int row = 0; row < 10; row++) {
+            for (int col = 3; col <= 5; col++) {
+                String piece = board[row][col];
+                if (!piece.isEmpty() && Character.toLowerCase(piece.charAt(0)) == 'k' &&
+                        (allyColor.equals("red") ? isRedPiece(piece) : isBlackPiece(piece))) {
+                    kingRow = row;
+                    kingCol = col;
+                    break;
+                }
+            }
+            if (kingRow != -1) break;
+        }
+
+        if (kingRow == -1) return false; // King not found (shouldn't happen in valid game)
+
+        // Check if any enemy piece can move to the king's position
+        String enemyColor = allyColor.equals("red") ? "black" : "red";
+        for (int row = 0; row < 10; row++) {
+            for (int col = 0; col < 9; col++) {
+                String piece = board[row][col];
+                if (!piece.isEmpty() && (enemyColor.equals("red") ? isRedPiece(piece) : isBlackPiece(piece))) {
+                    switch (Character.toLowerCase(piece.charAt(0))) {
+                        case 'p':
+                            if (isValidPawnMove(row, col, kingRow, kingCol, piece)) return true;
+                            break;
+                        case 'k':
+                            if (isValidKingMove(row, col, kingRow, kingCol, piece)) return true;
+                            break;
+                        case 'c':
+                            if (isValidCannonMove(board, row, col, kingRow, kingCol)) return true;
+                            break;
+                        case 'r':
+                            if (isValidRookMove(board, row, col, kingRow, kingCol)) return true;
+                            break;
+                        case 'h':
+                            if (isValidHorseMove(board, row, col, kingRow, kingCol)) return true;
+                            break;
+                        case 'e':
+                            if (isValidElephantMove(board, row, col, kingRow, kingCol, piece)) return true;
+                            break;
+                        case 'a':
+                            if (isValidAdvisorMove(row, col, kingRow, kingCol, piece)) return true;
+                            break;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // Helper methods to determine piece color (implement based on your board representation)
+    private static boolean isRedPiece(String piece) {
+        // Adjust based on your piece representation, e.g., uppercase, prefix, or specific format
+        return !piece.isEmpty() && Character.isUpperCase(piece.charAt(0)); // Example: Uppercase for red
+    }
+
+    private static boolean isBlackPiece(String piece) {
+        // Adjust based on your piece representation
+        return !piece.isEmpty() && Character.isLowerCase(piece.charAt(0)); // Example: Lowercase for black
     }
 
 }

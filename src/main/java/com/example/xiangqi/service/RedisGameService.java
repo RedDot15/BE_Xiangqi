@@ -78,6 +78,11 @@ import java.util.concurrent.TimeUnit;
         redisTemplate.opsForValue().set(key, timeExpiration, timeExpiration, TimeUnit.MILLISECONDS);
     }
 
+    public void saveAiMode(Long matchId, String aiMode) {
+        redisTemplate.opsForValue().set(String.format("match:%d:aiMode", matchId), aiMode);
+    }
+
+
     public void acquireMatchInitialLock(Long matchId) {
         while (true) {
             // Try to set the lock with a timeout
@@ -97,6 +102,10 @@ import java.util.concurrent.TimeUnit;
     // Get
     public String getBoardStateJson(Long matchId) {
         return (String) Objects.requireNonNull(redisTemplate.opsForValue().get(String.format(BOARD_KEY_PREFIX, matchId)));
+    }
+
+    public String getAiMode(Long matchId) {
+        return (String) redisTemplate.opsForValue().get(String.format("match:%d:aiMode", matchId));
     }
 
     public Long getPlayerId(Long matchId, boolean isRedPlayer) {

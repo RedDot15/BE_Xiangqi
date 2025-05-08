@@ -1,10 +1,12 @@
 package com.example.xiangqi.controller;
 
+import com.example.xiangqi.dto.request.ChangePasswordRequest;
 import com.example.xiangqi.dto.request.PlayerRequest;
 import com.example.xiangqi.helper.ResponseObject;
 import com.example.xiangqi.service.PlayerService;
 import com.example.xiangqi.validation.group.Create;
 import com.example.xiangqi.validation.group.Update;
+import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -39,17 +41,15 @@ public class PlayerController {
 	}
 
 	@PostMapping("/register")
-	public ResponseEntity<ResponseObject> register(
-			@Validated({Create.class, Default.class}) @RequestBody PlayerRequest playerRequest) {
+	public ResponseEntity<ResponseObject> register(@Valid @RequestBody PlayerRequest playerRequest) {
 		// Create & Return user
 		return buildResponse(HttpStatus.OK, "Created new player successfully.", playerService.register(playerRequest));
 	}
 
 	@PutMapping("/change-password")
-	public ResponseEntity<ResponseObject> changePassword(
-			@Validated({Update.class, Default.class}) @RequestBody PlayerRequest playerRequest) {
+	public ResponseEntity<ResponseObject> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
 		// Update & Return user
-		return buildResponse(HttpStatus.OK, "Changed password successfully.", playerService.changePassword(playerRequest));
+		return buildResponse(HttpStatus.OK, "Changed password successfully.", playerService.changePassword(request));
 	}
 
 	@DeleteMapping(value = "/{userId}/delete")

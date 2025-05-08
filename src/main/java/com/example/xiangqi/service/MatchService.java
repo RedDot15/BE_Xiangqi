@@ -3,10 +3,7 @@ package com.example.xiangqi.service;
 import com.example.xiangqi.dto.model.Position;
 import com.example.xiangqi.dto.request.CreateAIMatchRequest;
 import com.example.xiangqi.dto.request.MoveRequest;
-import com.example.xiangqi.dto.response.MatchResultResponse;
-import com.example.xiangqi.dto.response.MatchStateResponse;
-import com.example.xiangqi.dto.response.MoveResponse;
-import com.example.xiangqi.dto.response.QueueResponse;
+import com.example.xiangqi.dto.response.*;
 import com.example.xiangqi.entity.MatchEntity;
 import com.example.xiangqi.entity.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
@@ -21,6 +18,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.*;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -33,9 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -52,6 +48,38 @@ public class MatchService {
 	private static final long PLAYER_TURN_TIME_EXPIRATION = 60_000 * 1;
 	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
 
+	public Page<MatchResponse> getAllFinished(int page, int size, Long userId) {
+		// Define pageable
+		Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "startTime"));
+		// Return player list
+		Page<MatchEntity> matchEntityPage = matchRepository.findAllFinished(pageable, userId);
+
+		// Create a list to hold MatchResponse objects
+		List<MatchResponse> matchResponseList = new ArrayList<>();
+		// Mapping entity -> response
+		for (MatchEntity matchEntity : matchEntityPage.getContent()) {
+			// Get player's faction
+			boolean isRedPlayer = userId.equals(matchEntity.getRedPlayerEntity().getId());
+			// Get result
+			boolean isRedWin = matchEntity.getResult().equals("Red Player Win");
+			// Define match response
+			MatchResponse matchResponse = MatchResponse.builder()
+					.id(matchEntity.getId())
+					.opponentUsername(isRedPlayer
+							? matchEntity.getBlackPlayerEntity().getUsername()
+							: matchEntity.getRedPlayerEntity().getUsername())
+					.result(isRedPlayer
+							? (isRedWin ? "Win" : "Lose")
+							: (isRedWin ? "Lose" : "Win"))
+					.startTime(matchEntity.getStartTime())
+					.endTime(matchEntity.getEndTime())
+					.build();
+			// Add to response page
+			matchResponseList.add(matchResponse);
+		}
+		// Return
+		return new PageImpl<>(matchResponseList, pageable, matchEntityPage.getTotalElements());
+	}
 
 	public Long createMatch(Long player1Id, Long player2Id) {
 		MatchEntity matchEntity = new MatchEntity();

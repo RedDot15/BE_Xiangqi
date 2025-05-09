@@ -386,9 +386,20 @@ public class MatchService {
 			String aiMode = redisGameService.getAiMode(matchId);
 			if (aiMode != null && !aiMode.isEmpty()) {
 				MoveRequest moveAi = callAiMove(boardState, aiMode);
-				move(matchId, moveAi);
+
+				// Kiểm tra nếu AI không có nước đi hợp lệ
+				if (moveAi == null ||
+						(moveAi.getFrom().getRow() == -1 && moveAi.getFrom().getCol() == -1 &&
+								moveAi.getTo().getRow() == -1 && moveAi.getTo().getCol() == -1)) {
+
+					// Gọi endMatch khi AI không có nước đi
+					endMatch(matchId,blackPlayerId );
+					return; // Thoát để không gọi move()
+				}
+				move(matchId, moveAi); // Thực hiện nước đi nếu hợp lệ
 			}
 		}
+
 	}
 
 	private boolean isAi(Long playerId) {

@@ -282,10 +282,45 @@ public class MatchService {
 		Long blackPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, false);
 		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
 
+		// Move validate
+		boolean isValid = MoveValidator.isValidMove(
+				boardState,
+				moveRequest.getFrom().getRow(),
+				moveRequest.getFrom().getCol(),
+				moveRequest.getTo().getRow(),
+				moveRequest.getTo().getCol()
+		);
+
+		if (!isValid) {
+			throw new AppException(ErrorCode.INVALID_MOVE);
+		}
+
+		// Apply move & update Redis
+		applyMove(matchId, redPlayerId, blackPlayerId, turn, boardState, moveRequest, redPlayerTimeLeft, blackPlayerTimeLeft, lastMoveTime);
+
+		// Check if opponent has legal moves
+		String opponentColor = redPlayerId.equals(turn) ? "black" : "red";
+		if (!MoveValidator.hasLegalMoves(boardState, opponentColor))
+			endMatch(matchId, redPlayerId.equals(turn) ? blackPlayerId : redPlayerId);
+	}
+
+	public void moveAI(Long matchId, MoveRequest moveRequest, boolean imAI) {
+		// Retrieve board state from Redis
+		String boardStateJson = redisGameService.getBoardStateJson(matchId);
+
+		// Retrive match state from Redis
+		String[][] boardState = BoardUtils.boardParse(boardStateJson);
+		Long redPlayerId = redisGameService.getPlayerId(matchId, true);
+		Long blackPlayerId = redisGameService.getPlayerId(matchId, false);
+		Long turn = redisGameService.getTurn(matchId);
+		Long redPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, true);
+		Long blackPlayerTimeLeft = redisGameService.getPlayerTotalTimeLeft(matchId, false);
+		Instant lastMoveTime = redisGameService.getLastMoveTime(matchId);
+
 		// Get piece
 		String piece = boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()];
 
-		if (!isAi(blackPlayerId)) {
+		if (!imAI) {
 			// Check if the piece belongs to the current player
 			if (!isCorrectTurn(piece, redPlayerId, blackPlayerId, turn)) {
 				throw new AppException(ErrorCode.INVALID_MOVE);
@@ -309,9 +344,19 @@ public class MatchService {
 		applyMove(matchId, redPlayerId, blackPlayerId, turn, boardState, moveRequest, redPlayerTimeLeft, blackPlayerTimeLeft, lastMoveTime);
 
 		// Check if opponent has legal moves
-		String opponentColor = redPlayerId == turn ? "black" : "red";
-		if (!MoveValidator.hasLegalMoves(boardState, opponentColor))
-			endMatch(matchId, redPlayerId == turn ? blackPlayerId : redPlayerId);
+		String opponentColor = redPlayerId.equals(turn) ? "black" : "red";
+		if (!MoveValidator.hasLegalMoves(boardState, opponentColor)) {
+			endMatch(matchId, redPlayerId.equals(turn) ? blackPlayerId : redPlayerId);
+			return;
+		}
+
+		if (!imAI) {
+			String aiMode = redisGameService.getAiMode(matchId);
+			if (aiMode != null && !aiMode.isEmpty()) {
+				MoveRequest moveAi = callAIMove(boardState, aiMode);
+				moveAI(matchId, moveAi, true); // Thực hiện nước đi nếu hợp lệ
+			}
+		}
 	}
 
 	private static boolean isCorrectTurn(String piece, Long redPlayerId, Long blackPlayerId, Long turn) {
@@ -380,35 +425,10 @@ public class MatchService {
 				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 		messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
 				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
-
-
-		if (isRedPlayer) {
-			String aiMode = redisGameService.getAiMode(matchId);
-			if (aiMode != null && !aiMode.isEmpty()) {
-				MoveRequest moveAi = callAiMove(boardState, aiMode);
-
-				// Kiểm tra nếu AI không có nước đi hợp lệ
-				if (moveAi == null ||
-						(moveAi.getFrom().getRow() == -1 && moveAi.getFrom().getCol() == -1 &&
-								moveAi.getTo().getRow() == -1 && moveAi.getTo().getCol() == -1)) {
-
-					// Gọi endMatch khi AI không có nước đi
-					endMatch(matchId,blackPlayerId );
-					return; // Thoát để không gọi move()
-				}
-				move(matchId, moveAi); // Thực hiện nước đi nếu hợp lệ
-			}
-		}
-
 	}
 
-	private boolean isAi(Long playerId) {
-		return playerRepository.findRoleById(playerId)
-				.map(role -> role.startsWith("AI"))
-				.orElse(false);
-	}
 
-	private MoveRequest callAiMove(String[][] boardState,String aiMode) {
+	private MoveRequest callAIMove(String[][] boardState, String aiMode) {
 		try {
 			String url = switch (aiMode) {
                 case "AI_EASY" -> "http://127.0.0.1:8000/next-move";

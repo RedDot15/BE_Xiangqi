@@ -61,6 +61,14 @@ public class MatchController {
         return buildResponse(HttpStatus.OK, "Move request successfully.", null);
     }
 
+    @PostMapping("/{matchId}/moveAI")
+    public ResponseEntity<ResponseObject> moveAI(@PathVariable Long matchId, @RequestBody @Valid MoveRequest moveRequest) {
+        // Handle move request
+        matchService.moveAI(matchId, moveRequest, false);
+        // Response
+        return buildResponse(HttpStatus.OK, "Move request successfully.", null);
+    }
+
     @PutMapping("/{matchId}/resign")
     public ResponseEntity<ResponseObject> resignGame(@PathVariable Long matchId) {
         // Handle resign request

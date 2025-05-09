@@ -22,6 +22,7 @@ public enum ErrorCode {
     // Queue
     EMPTY_QUEUE(HttpStatus.CONFLICT, "Queue is empty."),
     UNQUEUE_INVALID(HttpStatus.CONFLICT, "Unqueue is invalid."),
+    ACCEPT_MATCH_INVALID(HttpStatus.CONFLICT, "Accept match is invalid."),
     // Match
     MATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Match not found."),
     MATCH_READY_INVALID(HttpStatus.FORBIDDEN, "You are not the player of this match."),

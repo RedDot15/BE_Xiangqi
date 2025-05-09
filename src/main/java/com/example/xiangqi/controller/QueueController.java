@@ -7,10 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 
@@ -27,6 +24,14 @@ public class QueueController {
 		queueService.queue();
 		// Fetch & Return all users
 		return buildResponse(HttpStatus.OK, "Queueing completed.", null);
+	}
+
+	@PostMapping("opponent/{opponentId}/accept-match")
+	public ResponseEntity<ResponseObject> joinQueue(@PathVariable Long opponentId) {
+		// Queue
+		queueService.acceptMatch(opponentId);
+		// Fetch & Return all users
+		return buildResponse(HttpStatus.OK, "Accept match completed.", null);
 	}
 
 	@DeleteMapping("/cancel")

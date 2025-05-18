@@ -17,8 +17,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Transactional
 @Service
-    public class RedisQueueService {
-        private final RedisTemplate<String, Object> redisTemplate;
+public class RedisQueueService {
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String PLAYER_ACCEPT_STATUS_KEY_PREFIX = "queue:playerId:%d:acceptStatus:";
     private static final String MATCH_ACCEPT_EXPIRATION_KEY = "player1Id:%d:player2Id:%d:matchAcceptExpiration:";

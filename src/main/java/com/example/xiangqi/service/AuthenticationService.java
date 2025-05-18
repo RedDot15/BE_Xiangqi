@@ -4,11 +4,9 @@ import com.example.xiangqi.dto.request.AuthenticationRequest;
 import com.example.xiangqi.dto.request.RefreshRequest;
 import com.example.xiangqi.dto.response.AuthenticationResponse;
 import com.example.xiangqi.dto.response.RefreshResponse;
-import com.example.xiangqi.entity.InvalidatedTokenEntity;
 import com.example.xiangqi.entity.UserEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
-import com.example.xiangqi.repository.InvalidatedTokenRepository;
 import com.example.xiangqi.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;
@@ -37,7 +35,7 @@ import java.util.UUID;
 public class AuthenticationService {
 	PasswordEncoder passwordEncoder;
 	UserRepository userRepository;
-	InvalidatedTokenRepository invalidatedTokenRepository;
+	RedisAuthService redisAuthService;
 	TokenService tokenService;
 
 	@NonFinal
@@ -75,12 +73,7 @@ public class AuthenticationService {
 			String jti = jwt.getClaim("jti");
 			Date expiryTime = Date.from(jwt.getClaim("exp"));
 			// Build & Save invalid token
-			InvalidatedTokenEntity invalidatedTokenEntity = InvalidatedTokenEntity.builder()
-					.id(jti)
-					.expiryTime(expiryTime)
-					.build();
-
-			invalidatedTokenRepository.save(invalidatedTokenEntity);
+			redisAuthService.saveInvalidatedTokenExpirationKey(jti, expiryTime.toInstant().toEpochMilli());
 			// Generate new token
 			String uuid = UUID.randomUUID().toString();
 			String refreshToken = tokenService.generateToken(userEntity, true, uuid);
@@ -101,11 +94,8 @@ public class AuthenticationService {
 		Jwt jwt = (Jwt) authentication.getPrincipal();
 		// Get token information
 		String jti = jwt.getClaim("rid");
-		Date expiryTime = Date.from(Instant.from(jwt.getClaim("iat")).plus(REFRESHABLE_DURATION, ChronoUnit.SECONDS));
-		// Build & Save invalid token
-		InvalidatedTokenEntity invalidatedTokenEntity =
-				InvalidatedTokenEntity.builder().id(jti).expiryTime(expiryTime).build();
-
-		invalidatedTokenRepository.save(invalidatedTokenEntity);
+		Instant expiryTime = Instant.from(jwt.getClaim("iat")).plus(REFRESHABLE_DURATION, ChronoUnit.SECONDS);
+		// Save invalid token
+		redisAuthService.saveInvalidatedTokenExpirationKey(jti, expiryTime.toEpochMilli());
 	}
 }

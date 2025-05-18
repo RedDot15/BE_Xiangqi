@@ -17,8 +17,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Transactional
 @Service
-    public class RedisGameService {
-        private final RedisTemplate<String, Object> redisTemplate;
+public class RedisMatchService {
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String BOARD_KEY_PREFIX = "match:%d:board:";
     private static final String PLAYER_KEY_PREFIX = "match:%d:%sPlayer:id:";
@@ -81,7 +81,6 @@ import java.util.concurrent.TimeUnit;
     public void saveAiMode(Long matchId, String aiMode) {
         redisTemplate.opsForValue().set(String.format("match:%d:aiMode", matchId), aiMode);
     }
-
 
     public void acquireMatchInitialLock(Long matchId) {
         while (true) {
@@ -181,5 +180,4 @@ import java.util.concurrent.TimeUnit;
     public void releaseMatchInitialLock(Long matchId) {
         redisTemplate.delete(String.format(MATCH_INITIAL_LOCK_KEY, matchId));
     }
-
 }

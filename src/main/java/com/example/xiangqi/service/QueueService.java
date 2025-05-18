@@ -81,8 +81,6 @@ public class QueueService {
             redisQueueService.savePlayerAcceptStatus(myId, false);
             redisQueueService.saveMatchAcceptExpiration(myId, Long.valueOf(opponentId), MATCH_ACCEPT_EXPIRATION);
 
-//            // Match found! Create a new match
-//            Long matchId = matchService.createMatch(Long.valueOf(opponentId), playerId);
             // Notify players via WebSocket
             messagingTemplate.convertAndSend("/topic/queue/player/" + opponentId,
                     new ResponseObject("ok", "Match found.", myId));

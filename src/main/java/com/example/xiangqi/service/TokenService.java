@@ -1,7 +1,6 @@
 package com.example.xiangqi.service;
 
 import com.example.xiangqi.entity.UserEntity;
-import com.example.xiangqi.repository.InvalidatedTokenRepository;
 import com.example.xiangqi.repository.UserRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -30,7 +29,7 @@ import java.util.Objects;
 @Service
 public class TokenService {
 	NimbusJwtDecoder nimbusJwtDecoder;
-	InvalidatedTokenRepository invalidatedTokenRepository;
+	RedisAuthService redisAuthService;
 	UserRepository userRepository;
 
 	@NonFinal
@@ -87,7 +86,7 @@ public class TokenService {
 			Jwt jwt = nimbusJwtDecoder.decode(token);
 			// Validate token based on type
 			String tokenId = isRefreshToken ? jwt.getClaim("jti") : jwt.getClaim("rid");
-			if (Objects.isNull(tokenId) || invalidatedTokenRepository.existsById(tokenId)) {
+			if (Objects.isNull(tokenId) || redisAuthService.getInvalidatedTokenExpirationKey(tokenId) != null) {
 				throw new JwtException("Invalid token");
 			}
 			if (userRepository.findByUsername(jwt.getSubject()).isEmpty()) throw new JwtException("Invalid user");

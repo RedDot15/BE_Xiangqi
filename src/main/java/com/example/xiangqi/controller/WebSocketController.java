@@ -81,8 +81,8 @@ public class WebSocketController {
         return buildResponse(HttpStatus.OK, "Accept invitation success.", null);
     }
 
-    @DeleteMapping("/player/{username}/invitation-reject")
-    public ResponseEntity<ResponseObject> rejectInvite(@PathVariable String username) {
+    @DeleteMapping({"/player/invitation-reject", "/player/{username}/invitation-reject"})
+    public ResponseEntity<ResponseObject> rejectInvite(@PathVariable(required = false) String username) {
         // Reject invitation
         webSocketService.rejectInvitation(username);
         // Find & Return player

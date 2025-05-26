@@ -228,8 +228,28 @@ public class WebSocketService {
         SecurityContext context = SecurityContextHolder.getContext();
         String myUsername = context.getAuthentication().getName();
         // Self finding exception
-        if (username.equals(myUsername))
+        if (username != null && username.equals(myUsername))
             throw new AppException(ErrorCode.USER_NOT_FOUND);
+
+        if (username == null) {
+            for (String opponentUsername : invitations.keySet()) {
+                List<String> opponentUsernameList = invitations.get(opponentUsername);
+                if (opponentUsernameList.contains(myUsername)) {
+                    // Remove invitation
+                    opponentUsernameList.remove(myUsername);
+                    // Get player info
+                    PlayerInfo opponentPlayerInfo = usernameToPlayer.get(opponentUsername);
+                    PlayerInfo myPlayerInfo = usernameToPlayer.get(myUsername);
+                    // Send invitation reject to opponent
+                    messagingTemplate.convertAndSend("/topic/invite/player/" + opponentPlayerInfo.getPlayerId(),
+                            new ResponseObject("ok", "INVITATION_REJECTED", null));
+                    // Send invitation cancel to myself
+                    messagingTemplate.convertAndSend("/topic/invite/player/" + myPlayerInfo.getPlayerId(),
+                            new ResponseObject("ok", "Invitation canceled.", opponentUsername));
+                }
+            }
+            return;
+        }
 
         // Get invitation list
         List<String> opponentUsernameList = invitations.get(username);
@@ -241,11 +261,14 @@ public class WebSocketService {
 
         // Get player info
         PlayerInfo opponentPlayerInfo = usernameToPlayer.get(username);
+        PlayerInfo myPlayerInfo = usernameToPlayer.get(myUsername);
 
-        // Send invitation accept to opponent
+        // Send invitation reject to opponent
         messagingTemplate.convertAndSend("/topic/invite/player/" + opponentPlayerInfo.getPlayerId(),
                 new ResponseObject("ok", "INVITATION_REJECTED", null));
-
+        // Send invitation cancel to myself
+        messagingTemplate.convertAndSend("/topic/invite/player/" + myPlayerInfo.getPlayerId(),
+                new ResponseObject("ok", "Invitation canceled.", username));
     }
 
     // Enum for player status

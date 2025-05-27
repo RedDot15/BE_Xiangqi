@@ -10,6 +10,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MatchRepository extends JpaRepository<MatchEntity, Long> {
-    @Query("SELECT m FROM MatchEntity m WHERE (:userId IS NULL OR m.blackPlayerEntity.id = :userId OR m.redPlayerEntity.id = :userId) AND m.result <> 'PLAYING...'")
+    @Query("SELECT m FROM MatchEntity m WHERE (:userId IS NULL OR m.blackPlayerEntity.id = :userId OR m.redPlayerEntity.id = :userId) AND m.result NOT IN ('PLAYING...', 'Match cancel.')")
     Page<MatchEntity> findAllFinished(Pageable pageable, @Param("userId") Long userId);
 }

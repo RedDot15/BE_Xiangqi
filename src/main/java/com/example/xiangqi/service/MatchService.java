@@ -46,6 +46,7 @@ public class MatchService {
 	SimpMessagingTemplate messagingTemplate;
 	PlayerRepository playerRepository;
 	RedisMatchService redisMatchService;
+	AIService aiService;
 	MatchMapper matchMapper;
 
 	private static final long PLAYER_TOTAL_TIME_LEFT = 60_000 * 15;
@@ -77,6 +78,7 @@ public class MatchService {
 		matchEntity.setRedPlayerEntity(firstIsRed ? player1 : player2);
 		matchEntity.setBlackPlayerEntity(firstIsRed ? player2: player1);
 
+		// Save match
 		matchRepository.save(matchEntity);
 
 		// REDIS:
@@ -337,7 +339,7 @@ public class MatchService {
 		if (!imAI) {
 			String aiMode = redisMatchService.getAiMode(matchId);
 			if (aiMode != null && !aiMode.isEmpty()) {
-				MoveRequest moveAi = callAIMove(boardState, aiMode);
+				MoveRequest moveAi = aiService.callAIMove(boardState, aiMode);
 				moveAI(matchId, moveAi, true); // Thực hiện nước đi nếu hợp lệ
 			}
 		}
@@ -409,43 +411,6 @@ public class MatchService {
 				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 		messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
 				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
-	}
-
-
-	private MoveRequest callAIMove(String[][] boardState, String aiMode) {
-		try {
-			String url = switch (aiMode) {
-                case "AI_EASY" -> "http://127.0.0.1:8000/next-move";
-                case "AI_HARD" -> "http://127.0.0.1:8000/next-move-pikafish";
-                default -> throw new IllegalArgumentException("Unknown AI mode: " + aiMode);
-            };
-            RestTemplate restTemplate = new RestTemplate();
-
-			HttpHeaders headers = new HttpHeaders();
-			headers.setContentType(MediaType.APPLICATION_JSON);
-
-			// Gửi mảng boardState trực tiếp dưới dạng JSON
-			Map<String, Object> boardWrapper = new HashMap<>();
-			boardWrapper.put("board", boardState);  // Truyền thẳng mảng 2 chiều boardState
-
-			HttpEntity<Map<String, Object>> entity = new HttpEntity<>(boardWrapper, headers);
-
-			// Gọi API Python
-			ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-
-			if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-				Map<String, Integer> moveMap = response.getBody();
-
-				Position from = new Position(moveMap.get("from_row"), moveMap.get("from_col"));
-				Position to = new Position(moveMap.get("to_row"), moveMap.get("to_col"));
-
-				return new MoveRequest(from, to);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return null; // hoặc throw nếu cần
 	}
 
 	public void handleTimeout(Long matchId) {

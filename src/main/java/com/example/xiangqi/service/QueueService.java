@@ -1,6 +1,5 @@
 package com.example.xiangqi.service;
 
-import com.example.xiangqi.dto.response.MatchStateResponse;
 import com.example.xiangqi.dto.response.QueueResponse;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
@@ -17,9 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -45,18 +42,16 @@ public class QueueService {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         // Get playerId from token
         Long myId = jwt.getClaim("uid");
-
         // Get current player's rank
         Integer playerRating = playerService.getRatingById(myId);
 
         // Wait to acquire lock
-        redisQueueService.acquireLock();
+        redisQueueService.acquireQueueLock();
 
         String opponentId = null;
         try {
             // Browse for opponent with equivalent rank
             Long listSize = redisTemplate.opsForList().size(QUEUE_KEY);
-
             for (int i = 0; i < listSize; i++) {
                 String potentialOpponentId = redisTemplate.opsForList().index(QUEUE_KEY, i);
                 if (potentialOpponentId != null && !potentialOpponentId.equals(String.valueOf(myId))) {
@@ -159,7 +154,7 @@ public class QueueService {
         Long playerId = jwt.getClaim("uid");
 
         // Wait to acquire lock
-        redisQueueService.acquireLock();
+        redisQueueService.acquireQueueLock();
 
         try {
             // Remove my Id from queue

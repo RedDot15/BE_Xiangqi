@@ -8,7 +8,9 @@ import com.example.xiangqi.entity.MatchEntity;
 import com.example.xiangqi.entity.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
+import com.example.xiangqi.dto.response.PageResponse;
 import com.example.xiangqi.helper.ResponseObject;
+import com.example.xiangqi.mapper.MatchMapper;
 import com.example.xiangqi.repository.MatchRepository;
 import com.example.xiangqi.repository.PlayerRepository;
 import com.example.xiangqi.util.BoardUtils;
@@ -32,6 +34,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -43,42 +46,23 @@ public class MatchService {
 	SimpMessagingTemplate messagingTemplate;
 	PlayerRepository playerRepository;
 	RedisMatchService redisMatchService;
+	MatchMapper matchMapper;
 
 	private static final long PLAYER_TOTAL_TIME_LEFT = 60_000 * 15;
 	private static final long PLAYER_TURN_TIME_EXPIRATION = 60_000 * 1;
 	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
 
-	public Page<MatchResponse> getAllFinished(int page, int size, Long userId) {
+	public PageResponse<MatchResponse> getAllFinished(int page, int size, Long userId) {
 		// Define pageable
 		Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "startTime"));
-		// Return player list
+		// Find all finished match
 		Page<MatchEntity> matchEntityPage = matchRepository.findAllFinished(pageable, userId);
+		// Mapping to match response list
+		List<MatchResponse> matchResponseList = matchEntityPage.getContent()
+				.stream().map(matchMapper::toResponse)
+				.collect(Collectors.toList());
 
-		// Create a list to hold MatchResponse objects
-		List<MatchResponse> matchResponseList = new ArrayList<>();
-		// Mapping entity -> response
-		for (MatchEntity matchEntity : matchEntityPage.getContent()) {
-			// Get player's faction
-			boolean isRedPlayer = userId.equals(matchEntity.getRedPlayerEntity().getId());
-			// Get result
-			boolean isRedWin = matchEntity.getResult().equals("Red Player Win");
-			// Define match response
-			MatchResponse matchResponse = MatchResponse.builder()
-					.id(matchEntity.getId())
-					.opponentUsername(isRedPlayer
-							? matchEntity.getBlackPlayerEntity().getUsername()
-							: matchEntity.getRedPlayerEntity().getUsername())
-					.result(isRedPlayer
-							? (isRedWin ? "Win" : "Lose")
-							: (isRedWin ? "Lose" : "Win"))
-					.startTime(matchEntity.getStartTime())
-					.endTime(matchEntity.getEndTime())
-					.build();
-			// Add to response page
-			matchResponseList.add(matchResponse);
-		}
-		// Return
-		return new PageImpl<>(matchResponseList, pageable, matchEntityPage.getTotalElements());
+		return new PageResponse<>(matchResponseList, matchEntityPage.getPageable(), matchEntityPage.getTotalElements());
 	}
 
 	public Long createMatch(Long player1Id, Long player2Id) {

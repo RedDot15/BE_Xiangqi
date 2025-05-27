@@ -1,6 +1,5 @@
 package com.example.xiangqi.dto.response;
 
-import jakarta.persistence.Column;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,12 +12,10 @@ import java.time.Instant;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class MatchResponse {
+public class HistoryResponse {
     Long id;
 
-    PlayerResponse redPlayerResponse;
-
-    PlayerResponse blackPlayerResponse;
+    String opponentUsername;
 
     String result;
 

@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -20,12 +19,17 @@ import java.util.concurrent.TimeUnit;
 public class RedisQueueService {
     private final RedisTemplate<String, Object> redisTemplate;
 
+    // Key prefix
     private static final String PLAYER_ACCEPT_STATUS_KEY_PREFIX = "queue:playerId:%d:acceptStatus:";
+
+    // Expiration
     private static final String MATCH_ACCEPT_EXPIRATION_KEY = "player1Id:%d:player2Id:%d:matchAcceptExpiration:";
 
-    private static final String LOCK_KEY = "lock:waitingPlayers:";
+    // Lock
+    private static final String QUEUE_LOCK_KEY = "lock:waitingPlayers:";
     private static final String MATCH_ACCEPT_LOCK_KEY = "lock:matchAccept:player1Id:%d:player2Id:%d:";
 
+    // Time
     private static final long LOCK_TIMEOUT_SECONDS = 10;
     private static final long RETRY_DELAY_MILLIS = 100;
 
@@ -60,10 +64,10 @@ public class RedisQueueService {
     }
 
     // Acquire lock
-    public void acquireLock() {
+    public void acquireQueueLock() {
         while (true) {
             // Try to set the lock with a timeout
-            Boolean success = redisTemplate.opsForValue().setIfAbsent(LOCK_KEY, "locked", LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            Boolean success = redisTemplate.opsForValue().setIfAbsent(QUEUE_LOCK_KEY, "locked", LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (success != null && success) {
                 return;
             }
@@ -95,7 +99,7 @@ public class RedisQueueService {
     // Release lock
     public void releaseLock() {
         // Remove the lock
-        redisTemplate.delete(LOCK_KEY);
+        redisTemplate.delete(QUEUE_LOCK_KEY);
     }
 
     public void releaseMatchAcceptLock(Long player1Id, Long player2Id) {

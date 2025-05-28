@@ -1,4 +1,4 @@
-package com.example.xiangqi.entity;
+package com.example.xiangqi.entity.my_sql;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;

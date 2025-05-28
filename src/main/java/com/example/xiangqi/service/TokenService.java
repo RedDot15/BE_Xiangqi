@@ -1,6 +1,6 @@
 package com.example.xiangqi.service;
 
-import com.example.xiangqi.entity.UserEntity;
+import com.example.xiangqi.entity.my_sql.UserEntity;
 import com.example.xiangqi.repository.UserRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;

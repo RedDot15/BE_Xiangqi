@@ -26,14 +26,6 @@ public class QueueController {
 		return buildResponse(HttpStatus.OK, "Queueing completed.", null);
 	}
 
-	@PostMapping("opponent/{opponentId}/accept-match")
-	public ResponseEntity<ResponseObject> joinQueue(@PathVariable Long opponentId) {
-		// Queue
-		queueService.acceptMatch(opponentId);
-		// Fetch & Return all users
-		return buildResponse(HttpStatus.OK, "Accept match completed.", null);
-	}
-
 	@DeleteMapping("/cancel")
 	public ResponseEntity<ResponseObject> unQueue() {
 		// Unqueue

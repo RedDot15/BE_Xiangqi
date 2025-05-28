@@ -4,7 +4,7 @@ import com.example.xiangqi.dto.request.AuthenticationRequest;
 import com.example.xiangqi.dto.request.RefreshRequest;
 import com.example.xiangqi.dto.response.AuthenticationResponse;
 import com.example.xiangqi.dto.response.RefreshResponse;
-import com.example.xiangqi.entity.UserEntity;
+import com.example.xiangqi.entity.my_sql.UserEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.repository.UserRepository;

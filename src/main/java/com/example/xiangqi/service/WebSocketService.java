@@ -4,8 +4,7 @@ package com.example.xiangqi.service;
 import com.example.xiangqi.dto.request.ChatRequest;
 import com.example.xiangqi.dto.response.ChatResponse;
 import com.example.xiangqi.dto.response.PlayerResponse;
-import com.example.xiangqi.dto.response.QueueResponse;
-import com.example.xiangqi.entity.PlayerEntity;
+import com.example.xiangqi.entity.my_sql.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.helper.ResponseObject;
@@ -217,9 +216,9 @@ public class WebSocketService {
 
         // Send invitation accept to opponent
         messagingTemplate.convertAndSend("/topic/invite/player/" + opponentPlayerInfo.getPlayerId(),
-                new ResponseObject("ok", "INVITATION_ACCEPTED", new QueueResponse(matchId, MATCH_SUCCESS)));
+                new ResponseObject("ok", "INVITATION_ACCEPTED", matchId));
         messagingTemplate.convertAndSend("/topic/invite/player/" + myPlayerInfo.getPlayerId(),
-                new ResponseObject("ok", "CUSTOM_MATCH_CREATED", new QueueResponse(matchId, MATCH_SUCCESS)));
+                new ResponseObject("ok", "CUSTOM_MATCH_CREATED", matchId));
     }
 
     public void rejectInvitation(String username) {

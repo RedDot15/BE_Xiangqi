@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 @Transactional
 @Service
 public class RedisAuthService {
-    private final RedisTemplate<String, Object> redisTemplate;
+    RedisTemplate<String, Long> redisTemplate;
 
     // Save
     public void saveInvalidatedTokenExpirationKey(String invalidatedToken, Long timeExpiration) {
@@ -26,7 +26,6 @@ public class RedisAuthService {
 
     // Get
     public Long getInvalidatedTokenExpirationKey(String invalidatedToken) {
-        Number number = (Number) redisTemplate.opsForValue().get(invalidatedToken);
-        return number == null ? null : number.longValue();
+        return redisTemplate.opsForValue().get(invalidatedToken);
     }
 }

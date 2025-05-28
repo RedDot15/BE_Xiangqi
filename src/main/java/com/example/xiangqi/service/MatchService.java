@@ -1,11 +1,10 @@
 package com.example.xiangqi.service;
 
-import com.example.xiangqi.dto.model.Position;
 import com.example.xiangqi.dto.request.CreateAIMatchRequest;
 import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.dto.response.*;
-import com.example.xiangqi.entity.MatchEntity;
-import com.example.xiangqi.entity.PlayerEntity;
+import com.example.xiangqi.entity.my_sql.MatchEntity;
+import com.example.xiangqi.entity.my_sql.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.dto.response.PageResponse;
@@ -21,16 +20,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.util.*;
@@ -211,7 +205,7 @@ public class MatchService {
 		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
 		// If this user isn't belong to this match
 		if (!userId.equals(redPlayerId) && !userId.equals(blackPlayerId))
-			throw new AppException(ErrorCode.MATCH_READY_INVALID);
+			throw new AppException(ErrorCode.UNAUTHORIZED);
 
 		// Get user's faction
 		boolean isRedPlayer = redPlayerId.equals(userId);
@@ -368,7 +362,7 @@ public class MatchService {
 		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
 
 		if (!userId.equals(redPlayerId) && !userId.equals(blackPlayerId))
-			throw new AppException(ErrorCode.MATCH_READY_INVALID);
+			throw new AppException(ErrorCode.UNAUTHORIZED);
 
 		endMatch(matchId, userId.equals(redPlayerId) ? redPlayerId : blackPlayerId);
 	}
@@ -413,7 +407,7 @@ public class MatchService {
 				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 	}
 
-	public void handleTimeout(Long matchId) {
+	public void handleMatchTimeout(Long matchId) {
 		// Get lastMoveTime if the game is start or not
 		Instant lastMoveTime = redisMatchService.getLastMoveTime(matchId);
 

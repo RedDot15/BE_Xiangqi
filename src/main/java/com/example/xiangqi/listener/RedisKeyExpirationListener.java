@@ -1,5 +1,6 @@
 package com.example.xiangqi.listener;
 
+import com.example.xiangqi.service.MatchContractService;
 import com.example.xiangqi.service.MatchService;
 import com.example.xiangqi.service.QueueService;
 import lombok.AccessLevel;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class RedisKeyExpirationListener implements MessageListener {
     MatchService matchService;
     QueueService queueService;
+    MatchContractService matchContractService;
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
@@ -22,12 +24,11 @@ public class RedisKeyExpirationListener implements MessageListener {
         if (key.matches("match:.*:turnTimeExpiration:") || key.matches("match:.*:totalTimeExpiration:")) {
             String[] parts = key.split(":");
             String matchId = parts[1];
-            matchService.handleTimeout(Long.valueOf(matchId));
-        } else if (key.matches("player1Id:.*:player2Id:.*:matchAcceptExpiration:")) {
+            matchService.handleMatchTimeout(Long.valueOf(matchId));
+        } else if (key.matches("matchContract:.*:")) {
             String[] parts = key.split(":");
-            String player1Id = parts[1];
-            String player2Id = parts[3];
-            queueService.handleMatchAcceptTimeout(Long.valueOf(player1Id), Long.valueOf(player2Id));
+            String matchContractId = parts[1];
+            matchContractService.handleMatchContractTimeout(matchContractId);
         }
     }
 }

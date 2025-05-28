@@ -3,7 +3,7 @@ package com.example.xiangqi.service;
 import com.example.xiangqi.dto.request.ChangePasswordRequest;
 import com.example.xiangqi.dto.request.PlayerRequest;
 import com.example.xiangqi.dto.response.PlayerResponse;
-import com.example.xiangqi.entity.PlayerEntity;
+import com.example.xiangqi.entity.my_sql.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.mapper.PlayerMapper;
@@ -34,6 +34,15 @@ public class PlayerService {
 	PlayerMapper playerMapper;
 	PasswordEncoder passwordEncoder;
 
+	public List<PlayerResponse> getAll(int page, int size, String role) {
+		// Define pageable
+		Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "rating"));
+		// Return player list
+		return playerRepository.findAll(pageable, role)
+				.stream().map(playerMapper::toPlayerResponse)
+				.collect(Collectors.toList());
+	}
+
 	public PlayerResponse getMyInfo() {
 		// Get context
 		SecurityContext context = SecurityContextHolder.getContext();
@@ -44,15 +53,6 @@ public class PlayerService {
 				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 		// Return
 		return playerMapper.toPlayerResponse(playerEntity);
-	}
-
-	public List<PlayerResponse> getAll(int page, int size, String role) {
-		// Define pageable
-		Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "rating"));
-		// Return player list
-		return playerRepository.findAll(pageable, role)
-				.stream().map(playerMapper::toPlayerResponse)
-				.collect(Collectors.toList());
 	}
 
 	public Integer getRatingById(Long id) {

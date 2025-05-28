@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 @Transactional
 @Service
 public class RedisMatchService {
-    private final RedisTemplate<String, Object> redisTemplate;
+    RedisTemplate<String, Object> redisTemplate;
 
     private static final String BOARD_KEY_PREFIX = "match:%d:board:";
     private static final String PLAYER_KEY_PREFIX = "match:%d:%sPlayer:id:";
@@ -80,22 +80,6 @@ public class RedisMatchService {
 
     public void saveAiMode(Long matchId, String aiMode) {
         redisTemplate.opsForValue().set(String.format("match:%d:aiMode", matchId), aiMode);
-    }
-
-    public void acquireMatchInitialLock(Long matchId) {
-        while (true) {
-            // Try to set the lock with a timeout
-            Boolean success = redisTemplate.opsForValue().setIfAbsent(String.format(MATCH_INITIAL_LOCK_KEY, matchId), "locked", LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (success != null && success) {
-                return;
-            }
-            try {
-                Thread.sleep(RETRY_DELAY_MILLIS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("Interrupted while waiting to retry lock acquisition", e);
-            }
-        }
     }
 
     // Get
@@ -177,6 +161,24 @@ public class RedisMatchService {
         redisTemplate.delete(String.format(PLAYER_TOTAL_TIME_EXPIRATION_KEY, matchId));
     }
 
+    // Acquire lock
+    public void acquireMatchInitialLock(Long matchId) {
+        while (true) {
+            // Try to set the lock with a timeout
+            Boolean success = redisTemplate.opsForValue().setIfAbsent(String.format(MATCH_INITIAL_LOCK_KEY, matchId), "locked", LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (success != null && success) {
+                return;
+            }
+            try {
+                Thread.sleep(RETRY_DELAY_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while waiting to retry lock acquisition", e);
+            }
+        }
+    }
+
+    // Release lock
     public void releaseMatchInitialLock(Long matchId) {
         redisTemplate.delete(String.format(MATCH_INITIAL_LOCK_KEY, matchId));
     }

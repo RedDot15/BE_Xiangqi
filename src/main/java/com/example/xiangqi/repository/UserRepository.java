@@ -1,6 +1,6 @@
 package com.example.xiangqi.repository;
 
-import com.example.xiangqi.entity.UserEntity;
+import com.example.xiangqi.entity.my_sql.UserEntity;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.jpa.repository.JpaRepository;

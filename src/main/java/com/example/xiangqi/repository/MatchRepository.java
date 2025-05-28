@@ -1,6 +1,6 @@
 package com.example.xiangqi.repository;
 
-import com.example.xiangqi.entity.MatchEntity;
+import com.example.xiangqi.entity.my_sql.MatchEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

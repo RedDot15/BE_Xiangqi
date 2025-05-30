@@ -11,7 +11,9 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MatchResultResponse {
-    String result;
+    String winner;
 
-    Integer ratingChange;
+    Integer ratingGain;
+
+    Integer ratingLoss;
 }

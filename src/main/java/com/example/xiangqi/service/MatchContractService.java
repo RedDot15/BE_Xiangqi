@@ -38,8 +38,9 @@ public class MatchContractService {
         entity.getPlayer2().setAcceptStatus(false);
         // Generate match contract ID
         String matchContractId = UUID.randomUUID().toString();
-        // Save & Return match contract ID
-        redisMatchContractService.saveMatchContract(matchContractId, entity, MATCH_CONTRACT_EXPIRATION);
+        // Initial match contract
+        redisMatchContractService.saveMatchContract(matchContractId, entity);
+        redisMatchContractService.saveMatchContractExpiration(matchContractId, MATCH_CONTRACT_EXPIRATION);
         // Return match contract ID
         return matchContractId;
     }
@@ -67,7 +68,7 @@ public class MatchContractService {
             mcEntity1.getPlayer1().setAcceptStatus(true);
         else
             mcEntity1.getPlayer2().setAcceptStatus(true);
-        redisMatchContractService.updateMatchContract(matchContractId, mcEntity1);
+        redisMatchContractService.saveMatchContract(matchContractId, mcEntity1);
 
         // Acquire lock
         redisMatchContractService.acquireMatchContractLock(matchContractId);
@@ -83,20 +84,20 @@ public class MatchContractService {
                 boolean opponentAcceptStatus = isPlayer1
                         ? mcEntity2.getPlayer2().getAcceptStatus()
                         : mcEntity2.getPlayer1().getAcceptStatus();
-
+                // Opponent is ready
                 if (opponentAcceptStatus) {
-                    // Delete players accept status
+                    // Delete match contract
                     redisMatchContractService.deleteMatchContract(matchContractId);
+                    redisMatchContractService.deleteMatchContractExpiration(matchContractId);
 
                     // Create match
                     Long matchId = matchService.createMatch(
                             mcEntity2.getPlayer1().getId(),
-                            mcEntity2.getPlayer2().getId());
+                            mcEntity2.getPlayer2().getId(),
+                            true);
 
                     // Notify both player: The match is start
-                    messagingTemplate.convertAndSend("/topic/queue/player/" + mcEntity2.getPlayer1().getId(),
-                            new ResponseObject("ok", "The match is created.", matchId));
-                    messagingTemplate.convertAndSend("/topic/queue/player/" + mcEntity2.getPlayer2().getId(),
+                    messagingTemplate.convertAndSend("/topic/match-contract/" + matchContractId,
                             new ResponseObject("ok", "The match is created.", matchId));
                 }
             }
@@ -105,7 +106,9 @@ public class MatchContractService {
         }
     }
 
-    public void handleMatchContractTimeout(String matchContractId) {
+    public void handleMatchContractExpiration(String matchContractId) {
+        // Delete match contract
+        redisMatchContractService.deleteMatchContract(matchContractId);
         // Notify both players match contract timeout
         messagingTemplate.convertAndSend("/topic/match-contract/" + matchContractId,
                 new ResponseObject("ok", "Match contract timeout.", null));

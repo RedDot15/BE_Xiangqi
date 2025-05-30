@@ -1,16 +1,24 @@
 package com.example.xiangqi.util;
 
+import com.example.xiangqi.dto.model.Position;
+import com.example.xiangqi.dto.request.MoveRequest;
+
 public class MoveValidator {
-    public static boolean hasLegalMoves(String[][] board, String playerColor) {
+    public static boolean hasLegalMoves(String[][] board, boolean isRedPlayer) {
         for (int fromRow = 0; fromRow < 10; fromRow++) {
             for (int fromCol = 0; fromCol < 9; fromCol++) {
                 String piece = board[fromRow][fromCol];
-                if (!piece.isEmpty() && (playerColor.equals("red") ? isRedPiece(piece) : isBlackPiece(piece))) {
+                if (!piece.isEmpty() && (isRedPlayer ? isRedPiece(piece) : isBlackPiece(piece))) {
                     // Try every possible destination
                     for (int toRow = 0; toRow < 10; toRow++) {
                         for (int toCol = 0; toCol < 9; toCol++) {
+                            // Define move request
+                            MoveRequest request = MoveRequest.builder()
+                                    .from(new Position(fromRow, fromCol))
+                                    .to(new Position(toRow, toCol))
+                                    .build();
                             // Check if the move is valid
-                            if (isValidMove(board, fromRow, fromCol, toRow, toCol)) {
+                            if (isValidMove(board, request)) {
                                 return true; // Found at least one legal move
                             }
                         }
@@ -21,22 +29,27 @@ public class MoveValidator {
         return false; // No legal moves found
     }
 
-    public static boolean isValidMove(String[][] board,
-                                      int fromRow, int fromCol, int toRow, int toCol) {
-        String piece = board[fromRow][fromCol];
+    public static boolean isValidMove(String[][] board, MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+        // Get moved piece
+        String movedPiece = board[fromRow][fromCol];
 
         // Check if the piece exists
-        if (piece.isEmpty()) {
+        if (movedPiece.isEmpty()) {
             return false;
         }
 
         // Check if the piece move out of board
-        if (isOutOfBoard(fromRow, fromCol, toRow, toCol)){
+        if (isOutOfBoard(moveRequest)){
             return false;
         }
 
         // Ensure the destination is not occupied by the player's own piece
-        if (!board[toRow][toCol].isEmpty() && isSameColor(piece, board[toRow][toCol])) {
+        if (!board[toRow][toCol].isEmpty() && isSameColor(movedPiece, board[toRow][toCol])) {
             return false;
         }
 
@@ -50,27 +63,32 @@ public class MoveValidator {
             return false; // Move is invalid if kings face each other
         }
         // Check if the move puts the player's own king in check
-        String allyColor = isRedPiece(piece) ? "red" : "black";
+        String allyColor = isRedPiece(movedPiece) ? "red" : "black";
         if (isKingInCheck(tempBoard, allyColor)) {
             return false; // Move is invalid if it puts own king in check
         }
 
         // Validate move based on the piece type
-        return switch (Character.toLowerCase(piece.charAt(0))) {
-            case 'r' -> isValidRookMove(board, fromRow, fromCol, toRow, toCol);
-            case 'h' -> isValidHorseMove(board, fromRow, fromCol, toRow, toCol);
-            case 'c' -> isValidCannonMove(board, fromRow, fromCol, toRow, toCol);
-            case 'e' -> isValidElephantMove(board, fromRow, fromCol, toRow, toCol, piece);
-            case 'a' -> isValidAdvisorMove(fromRow, fromCol, toRow, toCol, piece);
-            case 'k' -> isValidKingMove(fromRow, fromCol, toRow, toCol, piece);
-            case 'p' -> isValidPawnMove(fromRow, fromCol, toRow, toCol, piece);
+        return switch (Character.toLowerCase(movedPiece.charAt(0))) {
+            case 'r' -> isValidRookMove(board, moveRequest);
+            case 'h' -> isValidHorseMove(board, moveRequest);
+            case 'c' -> isValidCannonMove(board, moveRequest);
+            case 'e' -> isValidElephantMove(board, moveRequest);
+            case 'a' -> isValidAdvisorMove(moveRequest, movedPiece);
+            case 'k' -> isValidKingMove(moveRequest, movedPiece);
+            case 'p' -> isValidPawnMove(moveRequest, movedPiece);
             default -> false;
         };
     }
 
-    private static boolean isOutOfBoard(int fromRow, int fromCol, int toRow, int toCol) {
+    private static boolean isOutOfBoard(MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
         // Out of range
-        if (fromRow < 0 || fromRow > 9 || toRow < 0 || toRow > 9)
+        if (fromRow < 0 || fromCol > 9 || toRow < 0 || toRow > 9)
             return true;
         if (fromCol < 0 || fromCol > 8 || toCol < 0 || toCol > 8)
             return true;
@@ -83,30 +101,34 @@ public class MoveValidator {
                 (Character.isLowerCase(piece1.charAt(0)) && Character.isLowerCase(piece2.charAt(0)));
     }
 
-    private static boolean isValidPawnMove(int fromRow, int fromCol, int toRow, int toCol, String piece) {
-        int direction = Character.isUpperCase(piece.charAt(0)) ? -1 : 1; // Red moves up, Black moves down
-        boolean isAcrossRiver = (Character.isUpperCase(piece.charAt(0)) && fromRow <= 4) ||
-                (Character.isLowerCase(piece.charAt(0)) && fromRow >= 5);
+    private static boolean isValidRookMove(String[][] board, MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
 
-        // Moving forward
-        if (toRow == fromRow + direction && toCol == fromCol) {
-            return true;
-        }
-
-        // Moving sideways after crossing the river
-        return isAcrossRiver && toRow == fromRow && Math.abs(toCol - fromCol) == 1;
-    }
-
-    private static boolean isValidRookMove(String[][] board, int fromRow, int fromCol, int toRow, int toCol) {
+        // Check move valid:
         if (fromRow == toRow) {
-            return isPathClear(board, fromRow, fromCol, toCol, true);
+            return isPathClear(board, moveRequest, true);
         } else if (fromCol == toCol) {
-            return isPathClear(board, fromCol, fromRow, toRow, false);
+            return isPathClear(board, moveRequest, false);
         }
         return false;
     }
 
-    private static boolean isPathClear(String[][] board, int fixed, int start, int end, boolean isRowFixed) {
+    private static boolean isPathClear(String[][] board, MoveRequest request, boolean isRowFixed) {
+        // Get move request detail
+        int fromRow = request.getFrom().getRow();
+        int fromCol = request.getFrom().getCol();
+        int toRow = request.getTo().getRow();
+        int toCol = request.getTo().getCol();
+        // Simplify move request
+        int fixed = isRowFixed ? fromRow : fromCol;
+        int start = isRowFixed ? fromCol : fromRow;
+        int end = isRowFixed ? toCol : toRow;
+
+        // Check move valid
         int min = Math.min(start, end);
         int max = Math.max(start, end);
 
@@ -118,7 +140,14 @@ public class MoveValidator {
         return true;
     }
 
-    private static boolean isValidHorseMove(String[][] board, int fromRow, int fromCol, int toRow, int toCol) {
+    private static boolean isValidHorseMove(String[][] board, MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+
+        // Check move valid:
         int rowDiff = Math.abs(toRow - fromRow);
         int colDiff = Math.abs(toCol - fromCol);
 
@@ -130,7 +159,34 @@ public class MoveValidator {
         return false;
     }
 
-    private static boolean isValidElephantMove(String[][] board, int fromRow, int fromCol, int toRow, int toCol, String piece) {
+    private static boolean isValidCannonMove(String[][] board, MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+        // Check move valid
+        boolean isCapture = !board[toRow][toCol].isEmpty();
+        int count = countPiecesBetween(board, moveRequest);
+
+        // Check if move is horizontal or vertical
+        if (fromRow != toRow && fromCol != toCol) {
+            return false; // Diagonal moves are invalid
+        }
+
+        return (isCapture && count == 1) || (!isCapture && count == 0);
+    }
+
+    private static boolean isValidElephantMove(String[][] board, MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+        // Get moved piece
+        String piece = board[fromRow][fromCol];
+
+        // Check move valid:
         // Must move exactly 2 diagonally
         if (Math.abs(toRow - fromRow) != 2 || Math.abs(toCol - fromCol) != 2) {
             return false;
@@ -145,14 +201,18 @@ public class MoveValidator {
         // Midpoint check
         int midRow = (fromRow + toRow) / 2;
         int midCol = (fromCol + toCol) / 2;
-        if (!board[midRow][midCol].isEmpty()) {
-            return false; // Jumping over a piece is not allowed
-        }
-
-        return true;
+        // Jumping over a piece is not allowed
+        return board[midRow][midCol].isEmpty();
     }
 
-    private static boolean isValidAdvisorMove(int fromRow, int fromCol, int toRow, int toCol, String piece) {
+    private static boolean isValidAdvisorMove(MoveRequest moveRequest, String piece) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+
+        // Check move valid:
         // Must move exactly 1 diagonally
         if (Math.abs(toRow - fromRow) != 1 || Math.abs(toCol - fromCol) != 1) {
             return false;
@@ -164,14 +224,17 @@ public class MoveValidator {
         }
 
         boolean isRed = Character.isUpperCase(piece.charAt(0));
-        if ((isRed && (toRow < 7 || toRow > 9)) || (!isRed && (toRow < 0 || toRow > 2))) {
-            return false;
-        }
-
-        return true;
+        return (!isRed || (toRow >= 7 && toRow <= 9)) && (isRed || (toRow >= 0 && toRow <= 2));
     }
 
-    private static boolean isValidKingMove(int fromRow, int fromCol, int toRow, int toCol, String piece) {
+    private static boolean isValidKingMove(MoveRequest moveRequest, String piece) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+
+        // Check move valid:
         // Must move exactly 1 step (vertically or horizontally)
         if ((Math.abs(toRow - fromRow) + Math.abs(toCol - fromCol)) != 1) {
             return false;
@@ -183,26 +246,16 @@ public class MoveValidator {
         }
 
         boolean isRed = Character.isUpperCase(piece.charAt(0));
-        if ((isRed && (toRow < 7 || toRow > 9)) || (!isRed && (toRow < 0 || toRow > 2))) {
-            return false;
-        }
-
-        return true;
+        return (!isRed || (toRow >= 7 && toRow <= 9)) && (isRed || (toRow >= 0 && toRow <= 2));
     }
 
-    private static boolean isValidCannonMove(String[][] board, int fromRow, int fromCol, int toRow, int toCol) {
-        boolean isCapture = !board[toRow][toCol].isEmpty();
-        int count = countPiecesBetween(board, fromRow, fromCol, toRow, toCol);
-
-        // Check if move is horizontal or vertical
-        if (fromRow != toRow && fromCol != toCol) {
-            return false; // Diagonal moves are invalid
-        }
-
-        return (isCapture && count == 1) || (!isCapture && count == 0);
-    }
-
-    private static int countPiecesBetween(String[][] board, int fromRow, int fromCol, int toRow, int toCol) {
+    private static int countPiecesBetween(String[][] board, MoveRequest moveRequest) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+        // Counting
         int count = 0;
         if (fromRow == toRow) {
             for (int i = Math.min(fromCol, toCol) + 1; i < Math.max(fromCol, toCol); i++) {
@@ -214,6 +267,27 @@ public class MoveValidator {
             }
         }
         return count;
+    }
+
+    private static boolean isValidPawnMove(MoveRequest moveRequest, String piece) {
+        // Get move request detail
+        int fromRow = moveRequest.getFrom().getRow();
+        int fromCol = moveRequest.getFrom().getCol();
+        int toRow = moveRequest.getTo().getRow();
+        int toCol = moveRequest.getTo().getCol();
+
+        // Check move valid:
+        int direction = Character.isUpperCase(piece.charAt(0)) ? -1 : 1; // Red moves up, Black moves down
+        boolean isAcrossRiver = (Character.isUpperCase(piece.charAt(0)) && fromRow <= 4) ||
+                (Character.isLowerCase(piece.charAt(0)) && fromRow >= 5);
+
+        // Moving forward
+        if (toRow == fromRow + direction && toCol == fromCol) {
+            return true;
+        }
+
+        // Moving sideways after crossing the river
+        return isAcrossRiver && toRow == fromRow && Math.abs(toCol - fromCol) == 1;
     }
 
     private static boolean areKingsFacing(String[][] board) {
@@ -245,7 +319,7 @@ public class MoveValidator {
 
         // Check if there are any pieces between them
         for (int row = redKingRow - 1; row > blackKingRow; row--) {
-            if (!board[row][redKingCol].equals("")) { // If there's a piece between them
+            if (!board[row][redKingCol].isEmpty()) { // If there's a piece between them
                 return false;
             }
         }
@@ -277,29 +351,35 @@ public class MoveValidator {
         String enemyColor = allyColor.equals("red") ? "black" : "red";
         for (int row = 0; row < 10; row++) {
             for (int col = 0; col < 9; col++) {
-                String piece = board[row][col];
-                if (!piece.isEmpty() && (enemyColor.equals("red") ? isRedPiece(piece) : isBlackPiece(piece))) {
-                    switch (Character.toLowerCase(piece.charAt(0))) {
-                        case 'p':
-                            if (isValidPawnMove(row, col, kingRow, kingCol, piece)) return true;
-                            break;
-                        case 'k':
-                            if (isValidKingMove(row, col, kingRow, kingCol, piece)) return true;
-                            break;
-                        case 'c':
-                            if (isValidCannonMove(board, row, col, kingRow, kingCol)) return true;
-                            break;
+                // Get moved piece
+                String movedPiece = board[row][col];
+                // Define move request
+                MoveRequest moveRequest = MoveRequest.builder()
+                        .from(new Position(row, col))
+                        .to(new Position(kingRow, kingCol))
+                        .build();
+                if (!movedPiece.isEmpty() && (enemyColor.equals("red") ? isRedPiece(movedPiece) : isBlackPiece(movedPiece))) {
+                    switch (Character.toLowerCase(movedPiece.charAt(0))) {
                         case 'r':
-                            if (isValidRookMove(board, row, col, kingRow, kingCol)) return true;
+                            if (isValidRookMove(board, moveRequest)) return true;
                             break;
                         case 'h':
-                            if (isValidHorseMove(board, row, col, kingRow, kingCol)) return true;
+                            if (isValidHorseMove(board, moveRequest)) return true;
+                            break;
+                        case 'c':
+                            if (isValidCannonMove(board, moveRequest)) return true;
                             break;
                         case 'e':
-                            if (isValidElephantMove(board, row, col, kingRow, kingCol, piece)) return true;
+                            if (isValidElephantMove(board, moveRequest)) return true;
                             break;
                         case 'a':
-                            if (isValidAdvisorMove(row, col, kingRow, kingCol, piece)) return true;
+                            if (isValidAdvisorMove(moveRequest, movedPiece)) return true;
+                            break;
+                        case 'k':
+                            if (isValidKingMove(moveRequest, movedPiece)) return true;
+                            break;
+                        case 'p':
+                            if (isValidPawnMove(moveRequest, movedPiece)) return true;
                             break;
                     }
                 }
@@ -309,15 +389,12 @@ public class MoveValidator {
         return false;
     }
 
-    // Helper methods to determine piece color (implement based on your board representation)
+    // Helper methods to determine piece color
     private static boolean isRedPiece(String piece) {
-        // Adjust based on your piece representation, e.g., uppercase, prefix, or specific format
-        return !piece.isEmpty() && Character.isUpperCase(piece.charAt(0)); // Example: Uppercase for red
+        return !piece.isEmpty() && Character.isUpperCase(piece.charAt(0));
     }
 
     private static boolean isBlackPiece(String piece) {
-        // Adjust based on your piece representation
-        return !piece.isEmpty() && Character.isLowerCase(piece.charAt(0)); // Example: Lowercase for black
+        return !piece.isEmpty() && Character.isLowerCase(piece.charAt(0));
     }
-
 }

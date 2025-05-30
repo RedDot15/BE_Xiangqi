@@ -1,5 +1,6 @@
 package com.example.xiangqi.dto.response;
 
+import com.example.xiangqi.entity.redis.MatchStatePlayerEntity;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,23 +16,11 @@ import java.time.Instant;
 public class MatchStateResponse {
     String[][] boardState;
 
-    Long redPlayerId;
+    MatchStatePlayerResponse redPlayer;
 
-    Long blackPlayerId;
+    MatchStatePlayerResponse blackPlayer;
 
     Long turn;
-
-    String redPlayerName;
-
-    String blackPlayerName;
-
-    Integer redPlayerRating;
-
-    Integer blackPlayerRating;
-
-    Long redPlayerTimeLeft;
-
-    Long blackPlayerTimeLeft;
 
     Instant lastMoveTime;
 }

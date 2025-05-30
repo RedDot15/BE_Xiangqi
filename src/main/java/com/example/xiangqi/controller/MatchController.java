@@ -27,21 +27,7 @@ public class MatchController {
         return buildResponse(HttpStatus.OK, "Board state fetch successfully.", matchService.getMatchStateById(matchId));
     }
 
-    @PostMapping("/ai")
-    public ResponseEntity<ResponseObject> createMatchAgainstAI(@RequestBody CreateAIMatchRequest request) {
-
-        return buildResponse(HttpStatus.OK, "MATCH_CREATED_WITH_AI", matchService.createMatchWithAI(request));
-    }
-
-    @PostMapping("/{matchId}/ready")
-    public ResponseEntity<ResponseObject> readyMatch(@PathVariable Long matchId) {
-        // Ready match
-        matchService.ready(matchId);
-        // Response
-        return buildResponse(HttpStatus.OK, "Ready match successfully.", null);
-    }
-
-    @PostMapping("/{matchId}/move")
+    @PatchMapping("/{matchId}")
     public ResponseEntity<ResponseObject> move(@PathVariable Long matchId, @RequestBody @Valid MoveRequest moveRequest) {
         // Handle move request
         matchService.move(matchId, moveRequest);
@@ -49,15 +35,7 @@ public class MatchController {
         return buildResponse(HttpStatus.OK, "Move request successfully.", null);
     }
 
-    @PostMapping("/{matchId}/moveAI")
-    public ResponseEntity<ResponseObject> moveAI(@PathVariable Long matchId, @RequestBody @Valid MoveRequest moveRequest) {
-        // Handle move request
-        matchService.moveAI(matchId, moveRequest, false);
-        // Response
-        return buildResponse(HttpStatus.OK, "Move request successfully.", null);
-    }
-
-    @PutMapping("/{matchId}/resign")
+    @PatchMapping("/{matchId}/resign")
     public ResponseEntity<ResponseObject> resignGame(@PathVariable Long matchId) {
         // Handle resign request
         matchService.resign(matchId);

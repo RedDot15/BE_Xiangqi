@@ -1,4 +1,4 @@
-package com.example.xiangqi.entity.redis;
+package com.example.xiangqi.dto.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -9,8 +9,12 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class MatchContractEntity {
-    ContractPlayerEntity player1;
+public class MatchStatePlayerResponse {
+    Long id;
 
-    ContractPlayerEntity player2;
+    String name;
+
+    Integer rating;
+
+    Long totalTimeLeft;
 }

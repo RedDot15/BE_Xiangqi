@@ -5,11 +5,14 @@ import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.dto.response.*;
 import com.example.xiangqi.entity.my_sql.MatchEntity;
 import com.example.xiangqi.entity.my_sql.PlayerEntity;
+import com.example.xiangqi.entity.redis.MatchStateEntity;
+import com.example.xiangqi.entity.redis.MatchStatePlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.dto.response.PageResponse;
 import com.example.xiangqi.helper.ResponseObject;
 import com.example.xiangqi.mapper.MatchMapper;
+import com.example.xiangqi.mapper.MatchStateMapper;
 import com.example.xiangqi.repository.MatchRepository;
 import com.example.xiangqi.repository.PlayerRepository;
 import com.example.xiangqi.util.BoardUtils;
@@ -40,12 +43,12 @@ public class MatchService {
 	SimpMessagingTemplate messagingTemplate;
 	PlayerRepository playerRepository;
 	RedisMatchService redisMatchService;
-	AIService aiService;
 	MatchMapper matchMapper;
 
 	private static final long PLAYER_TOTAL_TIME_LEFT = 60_000 * 15;
 	private static final long PLAYER_TURN_TIME_EXPIRATION = 60_000 * 1;
 	private static final long PLAYER_TOTAL_TIME_EXPIRATION = 60_000 * 15;
+	private final MatchStateMapper matchStateMapper;
 
 	public PageResponse<MatchResponse> getAllFinished(int page, int size, Long userId) {
 		// Define pageable
@@ -60,7 +63,7 @@ public class MatchService {
 		return new PageResponse<>(matchResponseList, matchEntityPage.getPageable(), matchEntityPage.getTotalElements());
 	}
 
-	public Long createMatch(Long player1Id, Long player2Id) {
+	public Long createMatch(Long player1Id, Long player2Id, boolean isRank) {
 		MatchEntity matchEntity = new MatchEntity();
 
 		// Find the two players
@@ -75,279 +78,84 @@ public class MatchService {
 		// Save match
 		matchRepository.save(matchEntity);
 
-		// REDIS:
-		// Initial board state
-		String initialBoard = BoardUtils.getInitialBoardState();
-		redisMatchService.saveBoardStateJson(matchEntity.getId(), initialBoard);
-		// Save player ID
-		redisMatchService.savePlayerId(matchEntity.getId(), firstIsRed ? player1Id : player2Id, true);
-		redisMatchService.savePlayerId(matchEntity.getId(), firstIsRed ? player2Id : player1Id, false);
-		// Initial turn
-		redisMatchService.saveTurn(matchEntity.getId(), firstIsRed ? player1Id : player2Id);
-		// Initial player name
-		redisMatchService.savePlayerName(matchEntity.getId(), firstIsRed ? player1.getUsername() : player2.getUsername(), true);
-		redisMatchService.savePlayerName(matchEntity.getId(), firstIsRed ? player2.getUsername() : player1.getUsername(), false);
-		// Initial player rating
-		redisMatchService.savePlayerRating(matchEntity.getId(), firstIsRed ? player1.getRating() : player2.getRating(), true);
-		redisMatchService.savePlayerRating(matchEntity.getId(), firstIsRed ? player2.getRating() : player1.getRating(), false);
-		// Initial player's total time-left
-		redisMatchService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, true);
-		redisMatchService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, false);
-		// Initial player's ready-status
-		redisMatchService.savePlayerReadyStatus(matchEntity.getId(), true, false);
-		redisMatchService.savePlayerReadyStatus(matchEntity.getId(), false, false);
-		// Initial player's turn time-expiration
-		redisMatchService.savePlayerTurnTimeExpiration(matchEntity.getId(), PLAYER_TURN_TIME_EXPIRATION);
-
-		return matchEntity.getId();
-	}
-
-	public Long createMatchWithAI(CreateAIMatchRequest request) {
-		MatchEntity matchEntity = new MatchEntity();
-
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		Jwt jwt = (Jwt) authentication.getPrincipal();
-		Long playerId = jwt.getClaim("uid");
-
-		String mode = request.getMode();
-
-		Optional<Long> aiIdOptional = playerRepository.findIdByRole(mode); // Lấy mode từ request
-		Long aiId = aiIdOptional.orElseThrow(() -> new RuntimeException(mode + " player not found"));
-
-		PlayerEntity player1 = playerRepository.findById(playerId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-		PlayerEntity player2 = playerRepository.findById(aiId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-		// Gán người chơi là Red, AI là Black
-		matchEntity.setRedPlayerEntity(playerRepository.getReferenceById(playerId));
-		matchEntity.setBlackPlayerEntity(playerRepository.getReferenceById(aiId)); // AI
-
-		matchRepository.save(matchEntity);
-
-		// REDIS: Board, Turn, Thời gian...
-		String initialBoard = BoardUtils.getInitialBoardState();
-		redisMatchService.saveBoardStateJson(matchEntity.getId(), initialBoard);
-
-		// Gán PlayerID: người chơi là RED, AI là BLACK
-		redisMatchService.savePlayerId(matchEntity.getId(), playerId, true);
-		redisMatchService.savePlayerId(matchEntity.getId(), aiId, false);
-
-		redisMatchService.saveAiMode(matchEntity.getId(), mode);
-
-		// Lượt đi đầu tiên là của người chơi
-		redisMatchService.saveTurn(matchEntity.getId(), playerId);
-
-		// Gán tên người chơi và AI
-		redisMatchService.savePlayerName(matchEntity.getId(), player1.getUsername(), true);
-		redisMatchService.savePlayerName(matchEntity.getId(), player2.getUsername(), false);
-
-		// Gán rating của người chơi và AI
-		redisMatchService.savePlayerRating(matchEntity.getId(), player1.getRating(), true);
-		redisMatchService.savePlayerRating(matchEntity.getId(), player2.getRating(), false);
-
-		// Gán thời gian mặc định cho cả hai bên
-		redisMatchService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, true);
-		redisMatchService.savePlayerTotalTimeLeft(matchEntity.getId(), PLAYER_TOTAL_TIME_LEFT, false);
-		// Gán trạng thái ready ban đầu
-		redisMatchService.savePlayerReadyStatus(matchEntity.getId(), true, true);
-		redisMatchService.savePlayerReadyStatus(matchEntity.getId(), false, true);
-
-		// Initial player's turn time-expiration
-		redisMatchService.savePlayerTurnTimeExpiration(matchEntity.getId(), PLAYER_TURN_TIME_EXPIRATION);
+		// Initial match state
+		redisMatchService.saveMatchState(
+				matchEntity.getId(),
+				MatchStateEntity.builder()
+						.boardState(BoardUtils.getInitialBoardState())
+						.redPlayer(MatchStatePlayerEntity.builder()
+								.id(firstIsRed ? player1.getId() : player2.getId())
+								.name(firstIsRed ? player1.getUsername() : player2.getUsername())
+								.rating(firstIsRed ? player1.getRating() : player2.getRating())
+								.totalTimeLeft(PLAYER_TOTAL_TIME_LEFT)
+								.build())
+						.blackPlayer(MatchStatePlayerEntity.builder()
+								.id(firstIsRed ? player2.getId() : player1.getId())
+								.name(firstIsRed ? player2.getUsername() : player1.getUsername())
+								.rating(firstIsRed ? player2.getRating() : player1.getRating())
+								.totalTimeLeft(PLAYER_TOTAL_TIME_LEFT)
+								.build())
+						.turn(firstIsRed ? player1.getId() : player2.getId())
+						.lastMoveTime(Instant.now())
+						.mode(isRank ? "RANK" : "NORMAL")
+						.build()
+				);
+		// Initial match expiration
+		redisMatchService.saveMatchExpiration(matchEntity.getId(),
+				Math.min(PLAYER_TURN_TIME_EXPIRATION, PLAYER_TOTAL_TIME_EXPIRATION));
 
 		return matchEntity.getId();
 	}
 
 	public MatchStateResponse getMatchStateById(Long matchId) {
-		// Retrieve match state from Redis:
-		// Get board state
-		String boardStateJson = redisMatchService.getBoardStateJson(matchId);
-		// Get player ID
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
-		// Get turn
-		Long turn = redisMatchService.getTurn(matchId);
-		// Get player's name
-		String redPlayerName = redisMatchService.getPlayerName(matchId, true);
-		String blackPlayerName = redisMatchService.getPlayerName(matchId, false);
-		// Get player's rating
-		Integer redPlayerRating = redisMatchService.getPlayerRating(matchId, true);
-		Integer blackPlayerRating = redisMatchService.getPlayerRating(matchId, false);
-		// Get player's timer-left
-		Long redPlayerTimeLeft = redisMatchService.getPlayerTotalTimeLeft(matchId, true);
-		Long blackPlayerTimeLeft = redisMatchService.getPlayerTotalTimeLeft(matchId, false);
-		// Get last-move's time
-		Instant lastMoveTime = redisMatchService.getLastMoveTime(matchId);
-
-		// Return match state
-		return MatchStateResponse.builder()
-				.boardState(BoardUtils.boardParse(boardStateJson))
-				.redPlayerId(redPlayerId)
-				.blackPlayerId(blackPlayerId)
-				.turn(turn)
-				.redPlayerName(redPlayerName)
-				.blackPlayerName(blackPlayerName)
-				.redPlayerRating(redPlayerRating)
-				.blackPlayerRating(blackPlayerRating)
-				.redPlayerTimeLeft(redPlayerTimeLeft)
-				.blackPlayerTimeLeft(blackPlayerTimeLeft)
-				.lastMoveTime(lastMoveTime)
-				.build();
-	}
-
-	public void ready(Long matchId) {
-		// Get Jwt token from Context
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		Jwt jwt = (Jwt) authentication.getPrincipal();
-		// Get userId from token
-		Long userId = jwt.getClaim("uid");
-
-		// Get match player's ID
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
-		// If this user isn't belong to this match
-		if (!userId.equals(redPlayerId) && !userId.equals(blackPlayerId))
-			throw new AppException(ErrorCode.UNAUTHORIZED);
-
-		// Get user's faction
-		boolean isRedPlayer = redPlayerId.equals(userId);
-
-		// Update the ready status
-		redisMatchService.savePlayerReadyStatus(matchId, isRedPlayer, true);
-
-		Optional<String> roleOpt = playerRepository.findRoleById(blackPlayerId);
-		if (roleOpt.isPresent() && "AI".equalsIgnoreCase(roleOpt.get())) {
-			redisMatchService.savePlayerReadyStatus(matchId, false, true);
-		}
-
-		// Acquire lock
-		redisMatchService.acquireMatchInitialLock(matchId);
-
-		// Check to start match
-		try {
-			// Get opponent's ready-status
-			Boolean opponentReadyStatus = redisMatchService.getPlayerReadyStatus(matchId, !isRedPlayer);
-			// Get match's start-state through last-move time
-			Instant lastMoveTime = redisMatchService.getLastMoveTime(matchId);
-
-			// Start the match if the opponent is ready
-			if (lastMoveTime == null && opponentReadyStatus) {
-				// Initial last-move's time
-				redisMatchService.saveLastMoveTime(matchId, Instant.now());
-				// Get match state
-				MatchStateResponse matchStateResponse = getMatchStateById(matchId);
-				// Set Time Expiration
-				redisMatchService.savePlayerTurnTimeExpiration(matchId, PLAYER_TURN_TIME_EXPIRATION);
-				redisMatchService.savePlayerTotalTimeExpiration(matchId, PLAYER_TOTAL_TIME_EXPIRATION);
-
-				// Notify both player: The match is start
-				messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
-						new ResponseObject("ok", "The match is start.", matchStateResponse));
-				messagingTemplate.convertAndSend("/topic/match/player/" + blackPlayerId,
-						new ResponseObject("ok", "The match is start.", matchStateResponse));
-			}
-		} finally {
-			redisMatchService.releaseMatchInitialLock(matchId);
-		}
+		// Get match state
+		MatchStateEntity entity = redisMatchService.getMatchState(matchId);
+		// Mapping & Return match state
+		return matchStateMapper.toResponse(entity);
 	}
 
 	public void move(Long matchId, MoveRequest moveRequest) {
-		// Retrieve board state from Redis
-		String boardStateJson = redisMatchService.getBoardStateJson(matchId);
+		// Get match state
+		MatchStateEntity msEntity = redisMatchService.getMatchState(matchId);
 
-		// Retrive match state from Redis
-		String[][] boardState = BoardUtils.boardParse(boardStateJson);
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
-		Long turn = redisMatchService.getTurn(matchId);
-		Long redPlayerTimeLeft = redisMatchService.getPlayerTotalTimeLeft(matchId, true);
-		Long blackPlayerTimeLeft = redisMatchService.getPlayerTotalTimeLeft(matchId, false);
-		Instant lastMoveTime = redisMatchService.getLastMoveTime(matchId);
-
+		// Check if the piece belongs to the current player
+		if (!isCorrectTurn(msEntity, moveRequest))
+			throw new AppException(ErrorCode.UNAUTHORIZED);
 		// Move validate
-		boolean isValid = MoveValidator.isValidMove(
-				boardState,
-				moveRequest.getFrom().getRow(),
-				moveRequest.getFrom().getCol(),
-				moveRequest.getTo().getRow(),
-				moveRequest.getTo().getCol()
-		);
-
-		if (!isValid) {
+		if (!MoveValidator.isValidMove(msEntity.getBoardState(), moveRequest))
 			throw new AppException(ErrorCode.INVALID_MOVE);
-		}
 
 		// Apply move & update Redis
-		applyMove(matchId, redPlayerId, blackPlayerId, turn, boardState, moveRequest, redPlayerTimeLeft, blackPlayerTimeLeft, lastMoveTime);
+		applyMove(matchId, msEntity, moveRequest);
+
+		// Notify players via WebSocket
+		messagingTemplate.convertAndSend("/topic/match/" + matchId,
+				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 
 		// Check if opponent has legal moves
-		String opponentColor = redPlayerId.equals(turn) ? "black" : "red";
-		if (!MoveValidator.hasLegalMoves(boardState, opponentColor))
-			endMatch(matchId, redPlayerId.equals(turn) ? blackPlayerId : redPlayerId);
+		boolean opponentIsRed = msEntity.getRedPlayer().getId().equals(msEntity.getTurn());
+		if (!MoveValidator.hasLegalMoves(msEntity.getBoardState(), opponentIsRed))
+			endMatch(matchId, opponentIsRed
+					? msEntity.getRedPlayer().getId()
+					: msEntity.getBlackPlayer().getId());
 	}
 
-	public void moveAI(Long matchId, MoveRequest moveRequest, boolean imAI) {
-		// Retrieve board state from Redis
-		String boardStateJson = redisMatchService.getBoardStateJson(matchId);
-
-		// Retrive match state from Redis
-		String[][] boardState = BoardUtils.boardParse(boardStateJson);
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
-		Long turn = redisMatchService.getTurn(matchId);
-		Long redPlayerTimeLeft = redisMatchService.getPlayerTotalTimeLeft(matchId, true);
-		Long blackPlayerTimeLeft = redisMatchService.getPlayerTotalTimeLeft(matchId, false);
-		Instant lastMoveTime = redisMatchService.getLastMoveTime(matchId);
-
-		// Get piece
-		String piece = boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()];
-
-		if (!imAI) {
-			// Check if the piece belongs to the current player
-			if (!isCorrectTurn(piece, redPlayerId, blackPlayerId, turn)) {
-				throw new AppException(ErrorCode.INVALID_MOVE);
-			}
-		}
-
-		// Move validate
-		boolean isValid = MoveValidator.isValidMove(
-				boardState,
-				moveRequest.getFrom().getRow(),
-				moveRequest.getFrom().getCol(),
-				moveRequest.getTo().getRow(),
-				moveRequest.getTo().getCol()
-		);
-
-		if (!isValid) {
-			throw new AppException(ErrorCode.INVALID_MOVE);
-		}
-
-		// Apply move & update Redis
-		applyMove(matchId, redPlayerId, blackPlayerId, turn, boardState, moveRequest, redPlayerTimeLeft, blackPlayerTimeLeft, lastMoveTime);
-
-		// Check if opponent has legal moves
-		String opponentColor = redPlayerId.equals(turn) ? "black" : "red";
-		if (!MoveValidator.hasLegalMoves(boardState, opponentColor)) {
-			endMatch(matchId, redPlayerId.equals(turn) ? blackPlayerId : redPlayerId);
-			return;
-		}
-
-		if (!imAI) {
-			String aiMode = redisMatchService.getAiMode(matchId);
-			if (aiMode != null && !aiMode.isEmpty()) {
-				MoveRequest moveAi = aiService.callAIMove(boardState, aiMode);
-				moveAI(matchId, moveAi, true); // Thực hiện nước đi nếu hợp lệ
-			}
-		}
-	}
-
-	private static boolean isCorrectTurn(String piece, Long redPlayerId, Long blackPlayerId, Long turn) {
+	private static boolean isCorrectTurn(MatchStateEntity msEntity, MoveRequest request) {
 		// Get Jwt token from Context
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		Jwt jwt = (Jwt) authentication.getPrincipal();
 		// Get userId from token
 		Long userId = jwt.getClaim("uid");
 
-		return (Character.isUpperCase(piece.charAt(0)) && userId.equals(redPlayerId) && userId.equals(turn)) ||
-				(Character.isLowerCase(piece.charAt(0)) && userId.equals(blackPlayerId) && userId.equals(turn));
+		// Get match state
+		Long redPlayerId = msEntity.getRedPlayer().getId();
+		Long blackPlayerId = msEntity.getBlackPlayer().getId();
+		Long turn = msEntity.getTurn();
+		// Get moved piece
+		String movedPiece = msEntity.getBoardState()[request.getFrom().getRow()][request.getFrom().getCol()];
+
+		return (Character.isUpperCase(movedPiece.charAt(0)) && userId.equals(redPlayerId) && userId.equals(turn)) ||
+				(Character.isLowerCase(movedPiece.charAt(0)) && userId.equals(blackPlayerId) && userId.equals(turn));
 	}
 
 	public void resign(Long matchId) {
@@ -355,150 +163,115 @@ public class MatchService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		Jwt jwt = (Jwt) authentication.getPrincipal();
 		// Get userId from token
-		Long userId = jwt.getClaim("uid");
+		Long myId = jwt.getClaim("uid");
 
 		// Get player ID
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
+		MatchStateEntity msEntity = redisMatchService.getMatchState(matchId);
+		Long redPlayerId = msEntity.getRedPlayer().getId();
+		Long blackPlayerId = msEntity.getBlackPlayer().getId();
 
-		if (!userId.equals(redPlayerId) && !userId.equals(blackPlayerId))
+		if (!myId.equals(redPlayerId) && !myId.equals(blackPlayerId))
 			throw new AppException(ErrorCode.UNAUTHORIZED);
 
-		endMatch(matchId, userId.equals(redPlayerId) ? redPlayerId : blackPlayerId);
+		endMatch(matchId, myId.equals(redPlayerId) ? redPlayerId : blackPlayerId);
 	}
 
-	private void applyMove(Long matchId, Long redPlayerId, Long blackPlayerId, Long currentTurn, String[][] boardState, MoveRequest moveRequest, Long redPlayerTimeLeft, Long blackPlayerTimeLeft, Instant lastMoveTime) {
-		// Apply the move (update board state)
-		boardState[moveRequest.getTo().getRow()][moveRequest.getTo().getCol()] =
-				boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()]; // Move piece
-		boardState[moveRequest.getFrom().getRow()][moveRequest.getFrom().getCol()] = ""; // Clear old position
-
-		// Convert back to JSON and save to Redis
-		String updatedBoardStateJson = BoardUtils.boardSerialize(boardState);
-		redisMatchService.saveBoardStateJson(matchId, updatedBoardStateJson);
-
+	private void applyMove(Long matchId, MatchStateEntity msEntity, MoveRequest moveRequest) {
+		// Get match state
+		String[][] boardState = msEntity.getBoardState();
+		MatchStatePlayerEntity redPlayer = msEntity.getRedPlayer();
+		MatchStatePlayerEntity blackPlayer = msEntity.getBlackPlayer();
+		Instant lastMoveTime = msEntity.getLastMoveTime();
+		// Get move request detail
+		int fromRow = moveRequest.getFrom().getRow();
+		int fromCol = moveRequest.getFrom().getCol();
+		int toRow = moveRequest.getTo().getRow();
+		int toCol = moveRequest.getTo().getCol();
 		// Get user's faction
-		boolean isRedPlayer = currentTurn.equals(redPlayerId);
+		boolean isRedPlayer = msEntity.getTurn().equals(redPlayer.getId());
 
-		// Switch turns
-		Long nextTurn = isRedPlayer ? blackPlayerId : redPlayerId;
-		redisMatchService.saveTurn(matchId, nextTurn);
-
+		// Apply the move (update board state)
+		boardState[toRow][toCol] = boardState[fromRow][fromCol]; // Move piece
+		boardState[fromRow][fromCol] = ""; // Clear old position
+		// Update turns
+		Long nextTurn = isRedPlayer ? blackPlayer.getId() : redPlayer.getId();
+		msEntity.setTurn(nextTurn);
 		// Get current player's total time-left
-		Long currentPlayerTimeLeft = isRedPlayer ? redPlayerTimeLeft : blackPlayerTimeLeft;
+		Long currentPlayerTimeLeft = isRedPlayer ? redPlayer.getTotalTimeLeft() : blackPlayer.getTotalTimeLeft();
+		// Calculate player's total time-left
+		Long updatedPlayerTimeLeft = currentPlayerTimeLeft -
+				(Instant.now().toEpochMilli()-lastMoveTime.toEpochMilli());
 		// Update player's time-left
-		redisMatchService.savePlayerTotalTimeLeft(matchId,
-				currentPlayerTimeLeft - (Instant.now().toEpochMilli()-lastMoveTime.toEpochMilli()), isRedPlayer);
-
+		if (isRedPlayer)
+			redPlayer.setTotalTimeLeft(updatedPlayerTimeLeft);
+		else
+			blackPlayer.setTotalTimeLeft(updatedPlayerTimeLeft);
 		// Update Last Move Time
-		redisMatchService.saveLastMoveTime(matchId, Instant.now());
+		msEntity.setLastMoveTime(Instant.now());
+
+		// Update match state
+		redisMatchService.saveMatchState(matchId, msEntity);
 
 		// Get opponent player's total time-left
-		Long opponentPlayerTimeLeft = isRedPlayer ? blackPlayerTimeLeft : redPlayerTimeLeft;
+		Long opponentPlayerTimeLeft = isRedPlayer
+				? blackPlayer.getTotalTimeLeft()
+				: redPlayer.getTotalTimeLeft();
 
-		// Set Time Expiration
-		redisMatchService.savePlayerTurnTimeExpiration(matchId, PLAYER_TURN_TIME_EXPIRATION);
-		redisMatchService.savePlayerTotalTimeExpiration(matchId, opponentPlayerTimeLeft);
-
-		// Notify players via WebSocket
-		messagingTemplate.convertAndSend("/topic/match/player/" + blackPlayerId,
-				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
-		messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
-				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
+		// Set new match expiration
+		redisMatchService.saveMatchExpiration(matchId, Math.min(PLAYER_TURN_TIME_EXPIRATION, opponentPlayerTimeLeft));
 	}
 
-	public void handleMatchTimeout(Long matchId) {
-		// Get lastMoveTime if the game is start or not
-		Instant lastMoveTime = redisMatchService.getLastMoveTime(matchId);
-
-		if (lastMoveTime != null) {
-			endMatch(matchId, redisMatchService.getTurn(matchId));
-		} else {
-			cancelMatch(matchId);
-		}
+	public void handleMatchExpiration(Long matchId) {
+		// Get match state
+		MatchStateEntity entity = redisMatchService.getMatchState(matchId);
+		// End match
+		endMatch(matchId, entity.getTurn());
 	}
 
-	private void endMatch(Long matchId, Long resignPlayerId) {
+	private void endMatch(Long matchId, Long loserId) {
+		// Get match state
+		MatchStateEntity msEntity = redisMatchService.getMatchState(matchId);
 		// Get PlayerId
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
+		Long redPlayerId = msEntity.getRedPlayer().getId();
+		Long blackPlayerId = msEntity.getBlackPlayer().getId();
 
 		// Get player's faction
-		boolean	isRed = resignPlayerId.equals(redPlayerId);
+		boolean	isRedLose = loserId.equals(redPlayerId);
 
 		// Update match info
 		MatchEntity matchEntity = matchRepository.findById(matchId)
 				.orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
-		matchEntity.setResult(isRed ? "Black Player Win" : "Red Player Win"); // Opponent wins
+		matchEntity.setResult(isRedLose ? "Black Player Win" : "Red Player Win"); // Opponent wins
 		matchEntity.setEndTime(Instant.now());
 		matchRepository.save(matchEntity);
 
-		// Update red's elo
-		PlayerEntity redPlayerEntity = playerRepository.findById(redPlayerId)
-				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-		redPlayerEntity.setRating(isRed ? redPlayerEntity.getRating() - 10 : redPlayerEntity.getRating() + 10);
-		playerRepository.save(redPlayerEntity);
-		// Update black's elo
-		PlayerEntity blackPlayerEntity = playerRepository.findById(blackPlayerId)
-				.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-		blackPlayerEntity.setRating(isRed ? blackPlayerEntity.getRating() + 10 : blackPlayerEntity.getRating() - 10);
-		playerRepository.save(blackPlayerEntity);
+		// Get mode
+		boolean isRank = msEntity.getMode().equals("RANK");
+
+		if (isRank) {
+			// Update red's elo
+			PlayerEntity redPlayerEntity = playerRepository.findById(redPlayerId)
+					.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+			redPlayerEntity.setRating(isRedLose ? redPlayerEntity.getRating() - 10 : redPlayerEntity.getRating() + 10);
+			playerRepository.save(redPlayerEntity);
+			// Update black's elo
+			PlayerEntity blackPlayerEntity = playerRepository.findById(blackPlayerId)
+					.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+			blackPlayerEntity.setRating(isRedLose ? blackPlayerEntity.getRating() + 10 : blackPlayerEntity.getRating() - 10);
+			playerRepository.save(blackPlayerEntity);
+		}
 
 		// Delete match state
-		redisMatchService.deleteBoardState(matchEntity.getId());
-		redisMatchService.deletePlayerId(matchEntity.getId(), true);
-		redisMatchService.deletePlayerId(matchEntity.getId(), false);
-		redisMatchService.deleteTurn(matchEntity.getId());
-		redisMatchService.deletePlayerName(matchEntity.getId(), true);
-		redisMatchService.deletePlayerName(matchEntity.getId(), false);
-		redisMatchService.deletePlayerRating(matchEntity.getId(), true);
-		redisMatchService.deletePlayerRating(matchEntity.getId(), false);
-		redisMatchService.deleteTotalPlayerTimeLeft(matchEntity.getId(), true);
-		redisMatchService.deleteTotalPlayerTimeLeft(matchEntity.getId(), false);
-		redisMatchService.deleteLastMoveTime(matchEntity.getId());
-		redisMatchService.deletePlayerReadyStatus(matchEntity.getId(), true);
-		redisMatchService.deletePlayerReadyStatus(matchEntity.getId(), false);
-		redisMatchService.deletePlayerTurnTimeExpiration(matchEntity.getId());
-		redisMatchService.deletePlayerTotalTimeExpiration(matchEntity.getId());
+		redisMatchService.deleteMatchState(matchEntity.getId());
+		redisMatchService.deleteMatchExpiration(matchEntity.getId());
 
-		messagingTemplate.convertAndSend("/topic/match/player/" + (isRed ? blackPlayerId : redPlayerId),
-				new ResponseObject("ok", "Match finished.", new MatchResultResponse("WIN", +10)));
-		messagingTemplate.convertAndSend("/topic/match/player/" + (isRed ? redPlayerId : blackPlayerId),
-				new ResponseObject("ok", "Match finished.", new MatchResultResponse("LOSE", -10)));
-	}
-
-	private void cancelMatch(Long matchId) {
-		// Get PlayerId
-		Long redPlayerId = redisMatchService.getPlayerId(matchId, true);
-		Long blackPlayerId = redisMatchService.getPlayerId(matchId, false);
-
-		// Update match info
-		MatchEntity matchEntity = matchRepository.findById(matchId)
-				.orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
-		matchEntity.setResult("Match cancel."); // Opponent wins
-		matchEntity.setEndTime(Instant.now());
-		matchRepository.save(matchEntity);
-
-		// Delete match state
-		redisMatchService.deleteBoardState(matchEntity.getId());
-		redisMatchService.deletePlayerId(matchEntity.getId(), true);
-		redisMatchService.deletePlayerId(matchEntity.getId(), false);
-		redisMatchService.deleteTurn(matchEntity.getId());
-		redisMatchService.deletePlayerName(matchEntity.getId(), true);
-		redisMatchService.deletePlayerName(matchEntity.getId(), false);
-		redisMatchService.deletePlayerRating(matchEntity.getId(), true);
-		redisMatchService.deletePlayerRating(matchEntity.getId(), false);
-		redisMatchService.deleteTotalPlayerTimeLeft(matchEntity.getId(), true);
-		redisMatchService.deleteTotalPlayerTimeLeft(matchEntity.getId(), false);
-		redisMatchService.deleteLastMoveTime(matchEntity.getId());
-		redisMatchService.deletePlayerReadyStatus(matchEntity.getId(), true);
-		redisMatchService.deletePlayerReadyStatus(matchEntity.getId(), false);
-		redisMatchService.deletePlayerTurnTimeExpiration(matchEntity.getId());
-		redisMatchService.deletePlayerTotalTimeExpiration(matchEntity.getId());
-
-		messagingTemplate.convertAndSend("/topic/match/player/" + blackPlayerId,
-				new ResponseObject("ok", "Match cancel.", new MatchResultResponse("CANCEL", null)));
-		messagingTemplate.convertAndSend("/topic/match/player/" + redPlayerId,
-				new ResponseObject("ok", "Match cancel.", new MatchResultResponse("CANCEL", null)));
+		messagingTemplate.convertAndSend("/topic/match/" + matchId,
+				new ResponseObject(
+						"ok",
+						"Match finished.",
+						new MatchResultResponse(
+								isRedLose ? "black" : "red",
+								isRank ? +10 : 0,
+								isRank ? -10 : 0)));
 	}
 }

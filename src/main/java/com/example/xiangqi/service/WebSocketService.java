@@ -48,8 +48,6 @@ public class WebSocketService {
     SimpMessagingTemplate messagingTemplate;
     MatchService matchService;
 
-    private static final String MATCH_SUCCESS = "MATCH_FOUND";
-
     public void updateStatus(String payload, StompHeaderAccessor headerAccessor) {
         String[] parts = payload.split(":");
         if (parts.length >= 4) {
@@ -212,13 +210,16 @@ public class WebSocketService {
         PlayerInfo myPlayerInfo = usernameToPlayer.get(myUsername);
 
         // Create match
-        Long matchId = matchService.createMatch(opponentPlayerInfo.getPlayerId(), myPlayerInfo.getPlayerId());
+        Long matchId = matchService.createMatch(
+                opponentPlayerInfo.getPlayerId(),
+                myPlayerInfo.getPlayerId(),
+                false);
 
         // Send invitation accept to opponent
         messagingTemplate.convertAndSend("/topic/invite/player/" + opponentPlayerInfo.getPlayerId(),
-                new ResponseObject("ok", "INVITATION_ACCEPTED", matchId));
+                new ResponseObject("ok", "Invitation accepted.", matchId));
         messagingTemplate.convertAndSend("/topic/invite/player/" + myPlayerInfo.getPlayerId(),
-                new ResponseObject("ok", "CUSTOM_MATCH_CREATED", matchId));
+                new ResponseObject("ok", "Custom match created.", matchId));
     }
 
     public void rejectInvitation(String username) {
@@ -240,7 +241,7 @@ public class WebSocketService {
                     PlayerInfo myPlayerInfo = usernameToPlayer.get(myUsername);
                     // Send invitation reject to opponent
                     messagingTemplate.convertAndSend("/topic/invite/player/" + opponentPlayerInfo.getPlayerId(),
-                            new ResponseObject("ok", "INVITATION_REJECTED", null));
+                            new ResponseObject("ok", "Invitation rejected.", null));
                     // Send invitation cancel to myself
                     messagingTemplate.convertAndSend("/topic/invite/player/" + myPlayerInfo.getPlayerId(),
                             new ResponseObject("ok", "Invitation canceled.", opponentUsername));
@@ -263,7 +264,7 @@ public class WebSocketService {
 
         // Send invitation reject to opponent
         messagingTemplate.convertAndSend("/topic/invite/player/" + opponentPlayerInfo.getPlayerId(),
-                new ResponseObject("ok", "INVITATION_REJECTED", null));
+                new ResponseObject("ok", "Invitation rejected.", null));
         // Send invitation cancel to myself
         messagingTemplate.convertAndSend("/topic/invite/player/" + myPlayerInfo.getPlayerId(),
                 new ResponseObject("ok", "Invitation canceled.", username));

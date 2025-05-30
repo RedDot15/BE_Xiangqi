@@ -34,7 +34,7 @@ public enum ErrorCode {
     BOARD_STATE_SERIALIZED_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize board state"),
     BOARD_STATE_PARSING_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "Error parsing board state from Redis"),
     // Move
-    INVALID_MOVE(HttpStatus.CONFLICT, "Invalid move."),
+    INVALID_MOVE(HttpStatus.BAD_REQUEST, "Invalid move."),
     ;
 
     HttpStatus httpStatus;

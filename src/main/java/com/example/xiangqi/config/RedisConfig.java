@@ -1,7 +1,10 @@
 package com.example.xiangqi.config;
 
 import com.example.xiangqi.entity.redis.MatchContractEntity;
+import com.example.xiangqi.entity.redis.MatchStateEntity;
 import com.example.xiangqi.listener.RedisKeyExpirationListener;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -44,6 +47,22 @@ public class RedisConfig {
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new Jackson2JsonRedisSerializer<>(MatchContractEntity.class));
+        return template;
+    }
+
+    @Bean
+    public RedisTemplate<String, MatchStateEntity> matchStateRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, MatchStateEntity> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+
+        // Register time module
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        // Define value serializer
+        Jackson2JsonRedisSerializer<MatchStateEntity> serializer = new Jackson2JsonRedisSerializer<>(objectMapper, MatchStateEntity.class);
+        template.setValueSerializer(serializer);
+
         return template;
     }
 

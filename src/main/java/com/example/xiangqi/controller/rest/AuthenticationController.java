@@ -1,4 +1,4 @@
-package com.example.xiangqi.controller;
+package com.example.xiangqi.controller.rest;
 
 import com.example.xiangqi.dto.request.AuthenticationRequest;
 import com.example.xiangqi.dto.request.RefreshRequest;
@@ -17,26 +17,26 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/auth/")
 public class AuthenticationController {
 	AuthenticationService authenticationService;
 
-	@PostMapping(value = "/token")
+	@PostMapping(value = "/tokens")
 	public ResponseEntity<ResponseObject> authenticate(@Valid @RequestBody AuthenticationRequest request) {
 		return buildResponse(HttpStatus.OK, "Authenticate successfully.", authenticationService.authenticate(request));
 	}
 
-	@GetMapping("/token/introspect")
-	public ResponseEntity<ResponseObject> introspect() {
-		return buildResponse(HttpStatus.OK, "Token valid.", null);
-	}
-
-	@PostMapping("/token/refresh")
+	@PostMapping("/tokens/refresh")
 	public ResponseEntity<ResponseObject> refreshToken(@Valid @RequestBody RefreshRequest request) {
 		return buildResponse(HttpStatus.OK, "Authenticate successfully.", authenticationService.refresh(request));
 	}
 
-	@PostMapping("/my-token/invalidate")
+	@GetMapping("/tokens/introspect")
+	public ResponseEntity<ResponseObject> introspect() {
+		return buildResponse(HttpStatus.OK, "Token valid.", null);
+	}
+
+	@DeleteMapping("/tokens")
 	public ResponseEntity<ResponseObject> logout() {
 		authenticationService.logout();
 		return buildResponse(HttpStatus.OK, "Log out successfully.", null);

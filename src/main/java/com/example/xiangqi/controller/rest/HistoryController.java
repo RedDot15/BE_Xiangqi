@@ -1,4 +1,4 @@
-package com.example.xiangqi.controller;
+package com.example.xiangqi.controller.rest;
 
 import com.example.xiangqi.helper.ResponseObject;
 import com.example.xiangqi.service.HistoryService;
@@ -18,7 +18,7 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 public class HistoryController {
     HistoryService historyService;
 
-    @GetMapping("/")
+    @GetMapping("")
     public ResponseEntity<ResponseObject> getAllByUserId(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,

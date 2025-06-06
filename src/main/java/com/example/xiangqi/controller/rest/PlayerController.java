@@ -1,4 +1,4 @@
-package com.example.xiangqi.controller;
+package com.example.xiangqi.controller.rest;
 
 import com.example.xiangqi.dto.request.ChangePasswordRequest;
 import com.example.xiangqi.dto.request.PlayerRequest;
@@ -21,13 +21,7 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 public class PlayerController {
 	PlayerService playerService;
 
-	@GetMapping("/my-info/get")
-	public ResponseEntity<ResponseObject> showMyInfo() {
-		// Fetch & Return all users
-		return buildResponse(HttpStatus.OK, "My information fetch successfully.", playerService.getMyInfo());
-	}
-
-	@GetMapping("/")
+	@GetMapping("")
 	public ResponseEntity<ResponseObject> getAll(
 			@RequestParam(defaultValue = "1") int page,
 			@RequestParam(defaultValue = "10") int size,
@@ -36,22 +30,27 @@ public class PlayerController {
 		return buildResponse(HttpStatus.OK, "Get all player successfully.", playerService.getAll(page, size, role));
 	}
 
-	@PostMapping("/register")
+	@GetMapping("/me")
+	public ResponseEntity<ResponseObject> getMyInfo() {
+		// Fetch & Return all users
+		return buildResponse(HttpStatus.OK, "My information fetch successfully.", playerService.getMyInfo());
+	}
+
+	@PostMapping("")
 	public ResponseEntity<ResponseObject> register(@Valid @RequestBody PlayerRequest playerRequest) {
 		// Create & Return user
 		return buildResponse(HttpStatus.OK, "Created new player successfully.", playerService.register(playerRequest));
 	}
 
-	@PutMapping("/change-password")
+	@PutMapping("/me")
 	public ResponseEntity<ResponseObject> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
 		// Update & Return user
 		return buildResponse(HttpStatus.OK, "Changed password successfully.", playerService.changePassword(request));
 	}
 
-	@DeleteMapping(value = "/{userId}/delete")
-	public ResponseEntity<ResponseObject> delete(@PathVariable Long userId) {
+	@DeleteMapping(value = "/{playerId}")
+	public ResponseEntity<ResponseObject> delete(@PathVariable Long playerId) {
 		// Delete & Return id
-		return buildResponse(HttpStatus.OK, "Deleted user successfully.", playerService.delete(userId));
+		return buildResponse(HttpStatus.OK, "Deleted user successfully.", playerService.delete(playerId));
 	}
-
 }

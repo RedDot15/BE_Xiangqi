@@ -4,7 +4,8 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-/src/main/resources/env.properties
+src/main/resources/env.properties
+src/main/resources/google_client_secret.json
 
 ### STS ###
 .apt_generated

@@ -1,6 +1,5 @@
-package com.example.xiangqi.controller;
+package com.example.xiangqi.controller.rest;
 
-import com.example.xiangqi.dto.request.CreateAIMatchRequest;
 import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.helper.ResponseObject;
 import com.example.xiangqi.service.MatchService;
@@ -25,21 +24,5 @@ public class MatchController {
     public ResponseEntity<ResponseObject> getMatch(@PathVariable Long matchId) {
         // Fetch board state
         return buildResponse(HttpStatus.OK, "Board state fetch successfully.", matchService.getMatchStateById(matchId));
-    }
-
-    @PatchMapping("/{matchId}")
-    public ResponseEntity<ResponseObject> move(@PathVariable Long matchId, @RequestBody @Valid MoveRequest moveRequest) {
-        // Handle move request
-        matchService.move(matchId, moveRequest);
-        // Response
-        return buildResponse(HttpStatus.OK, "Move request successfully.", null);
-    }
-
-    @PatchMapping("/{matchId}/resign")
-    public ResponseEntity<ResponseObject> resignGame(@PathVariable Long matchId) {
-        // Handle resign request
-        matchService.resign(matchId);
-        // Handle move request
-        return buildResponse(HttpStatus.OK, "Move request successfully.", null);
     }
 }

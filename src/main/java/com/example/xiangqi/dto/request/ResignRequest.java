@@ -12,16 +12,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class MoveRequest {
+public class ResignRequest {
     @NotNull(message = "Match ID is required.")
     Long matchId;
 
-    @NotNull(message = "Mover ID is required.")
-    Long moverId;
-
-    @NotNull(message = "From is required.")
-    Position from;
-
-    @NotNull(message = "To is required.")
-    Position to;
+    @NotNull(message = "Surrender ID is required.")
+    Long surrenderId;
 }

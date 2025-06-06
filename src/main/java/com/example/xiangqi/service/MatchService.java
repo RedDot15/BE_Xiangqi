@@ -1,7 +1,7 @@
 package com.example.xiangqi.service;
 
-import com.example.xiangqi.dto.request.CreateAIMatchRequest;
 import com.example.xiangqi.dto.request.MoveRequest;
+import com.example.xiangqi.dto.request.ResignRequest;
 import com.example.xiangqi.dto.response.*;
 import com.example.xiangqi.entity.my_sql.MatchEntity;
 import com.example.xiangqi.entity.my_sql.PlayerEntity;
@@ -10,7 +10,7 @@ import com.example.xiangqi.entity.redis.MatchStatePlayerEntity;
 import com.example.xiangqi.exception.AppException;
 import com.example.xiangqi.exception.ErrorCode;
 import com.example.xiangqi.dto.response.PageResponse;
-import com.example.xiangqi.helper.ResponseObject;
+import com.example.xiangqi.helper.MessageObject;
 import com.example.xiangqi.mapper.MatchMapper;
 import com.example.xiangqi.mapper.MatchStateMapper;
 import com.example.xiangqi.repository.MatchRepository;
@@ -24,9 +24,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -98,8 +95,7 @@ public class MatchService {
 						.turn(firstIsRed ? player1.getId() : player2.getId())
 						.lastMoveTime(Instant.now())
 						.mode(isRank ? "RANK" : "NORMAL")
-						.build()
-				);
+						.build());
 		// Initial match expiration
 		redisMatchService.saveMatchExpiration(matchEntity.getId(),
 				Math.min(PLAYER_TURN_TIME_EXPIRATION, PLAYER_TOTAL_TIME_EXPIRATION));
@@ -114,9 +110,9 @@ public class MatchService {
 		return matchStateMapper.toResponse(entity);
 	}
 
-	public void move(Long matchId, MoveRequest moveRequest) {
+	public void move(MoveRequest moveRequest) {
 		// Get match state
-		MatchStateEntity msEntity = redisMatchService.getMatchState(matchId);
+		MatchStateEntity msEntity = redisMatchService.getMatchState(moveRequest.getMatchId());
 
 		// Check if the piece belongs to the current player
 		if (!isCorrectTurn(msEntity, moveRequest))
@@ -126,27 +122,21 @@ public class MatchService {
 			throw new AppException(ErrorCode.INVALID_MOVE);
 
 		// Apply move & update Redis
-		applyMove(matchId, msEntity, moveRequest);
+		applyMove(moveRequest.getMatchId(), msEntity, moveRequest);
 
 		// Notify players via WebSocket
-		messagingTemplate.convertAndSend("/topic/match/" + matchId,
-				new ResponseObject("ok", "Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
+		messagingTemplate.convertAndSend("/topic/match/" + moveRequest.getMatchId(),
+				new MessageObject("Piece moved.", new MoveResponse(moveRequest.getFrom(), moveRequest.getTo())));
 
 		// Check if opponent has legal moves
 		boolean opponentIsRed = msEntity.getRedPlayer().getId().equals(msEntity.getTurn());
 		if (!MoveValidator.hasLegalMoves(msEntity.getBoardState(), opponentIsRed))
-			endMatch(matchId, opponentIsRed
+			endMatch(moveRequest.getMatchId(), opponentIsRed
 					? msEntity.getRedPlayer().getId()
 					: msEntity.getBlackPlayer().getId());
 	}
 
 	private static boolean isCorrectTurn(MatchStateEntity msEntity, MoveRequest request) {
-		// Get Jwt token from Context
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		Jwt jwt = (Jwt) authentication.getPrincipal();
-		// Get userId from token
-		Long userId = jwt.getClaim("uid");
-
 		// Get match state
 		Long redPlayerId = msEntity.getRedPlayer().getId();
 		Long blackPlayerId = msEntity.getBlackPlayer().getId();
@@ -154,26 +144,20 @@ public class MatchService {
 		// Get moved piece
 		String movedPiece = msEntity.getBoardState()[request.getFrom().getRow()][request.getFrom().getCol()];
 
-		return (Character.isUpperCase(movedPiece.charAt(0)) && userId.equals(redPlayerId) && userId.equals(turn)) ||
-				(Character.isLowerCase(movedPiece.charAt(0)) && userId.equals(blackPlayerId) && userId.equals(turn));
+		return (Character.isUpperCase(movedPiece.charAt(0)) && request.getMoverId().equals(redPlayerId) && request.getMoverId().equals(turn)) ||
+				(Character.isLowerCase(movedPiece.charAt(0)) && request.getMoverId().equals(blackPlayerId) && request.getMoverId().equals(turn));
 	}
 
-	public void resign(Long matchId) {
-		// Get Jwt token from Context
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		Jwt jwt = (Jwt) authentication.getPrincipal();
-		// Get userId from token
-		Long myId = jwt.getClaim("uid");
-
+	public void resign(ResignRequest resignRequest) {
 		// Get player ID
-		MatchStateEntity msEntity = redisMatchService.getMatchState(matchId);
+		MatchStateEntity msEntity = redisMatchService.getMatchState(resignRequest.getMatchId());
 		Long redPlayerId = msEntity.getRedPlayer().getId();
 		Long blackPlayerId = msEntity.getBlackPlayer().getId();
 
-		if (!myId.equals(redPlayerId) && !myId.equals(blackPlayerId))
+		if (!resignRequest.getSurrenderId().equals(redPlayerId) && !resignRequest.getSurrenderId().equals(blackPlayerId))
 			throw new AppException(ErrorCode.UNAUTHORIZED);
 
-		endMatch(matchId, myId.equals(redPlayerId) ? redPlayerId : blackPlayerId);
+		endMatch(resignRequest.getMatchId(), resignRequest.getSurrenderId().equals(redPlayerId) ? redPlayerId : blackPlayerId);
 	}
 
 	private void applyMove(Long matchId, MatchStateEntity msEntity, MoveRequest moveRequest) {
@@ -266,8 +250,7 @@ public class MatchService {
 		redisMatchService.deleteMatchExpiration(matchEntity.getId());
 
 		messagingTemplate.convertAndSend("/topic/match/" + matchId,
-				new ResponseObject(
-						"ok",
+				new MessageObject(
 						"Match finished.",
 						new MatchResultResponse(
 								isRedLose ? "black" : "red",

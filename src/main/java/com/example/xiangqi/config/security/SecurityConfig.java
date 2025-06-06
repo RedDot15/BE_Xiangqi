@@ -7,6 +7,7 @@ import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -36,9 +37,8 @@ import java.time.Duration;
 public class SecurityConfig {
 
 	private static final String[] PUBLIC_ENDPOINTS = {
-		"/api/auth/token/refresh",
-		"/api/auth/token",
-		"/api/player/register",
+		"/api/auth/tokens/refresh",
+		"/api/auth/tokens",
 		"/ws/**"
 	};
 
@@ -54,8 +54,8 @@ public class SecurityConfig {
 				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests(
 						authorize -> authorize
-								.requestMatchers(PUBLIC_ENDPOINTS)
-								.permitAll()
+								.requestMatchers(HttpMethod.POST, "/api/players").permitAll()
+								.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
 								.anyRequest()
 								.authenticated() // Authenticate the rest endpoint
 						)

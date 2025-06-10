@@ -39,6 +39,8 @@ public class SecurityConfig {
 	private static final String[] PUBLIC_ENDPOINTS = {
 		"/api/auth/tokens/refresh",
 		"/api/auth/tokens",
+		"/api/auth/outbound/*/authenticate",
+		"/api/players/social",
 		"/ws/**"
 	};
 

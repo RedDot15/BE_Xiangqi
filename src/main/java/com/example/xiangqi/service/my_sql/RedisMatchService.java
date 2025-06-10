@@ -1,4 +1,4 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 import com.example.xiangqi.entity.redis.MatchStateEntity;
 import jakarta.transaction.Transactional;
@@ -9,8 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor

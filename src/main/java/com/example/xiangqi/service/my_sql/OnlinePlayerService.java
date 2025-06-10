@@ -1,4 +1,4 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 
 import com.example.xiangqi.dto.response.PlayerResponse;
@@ -19,7 +19,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

@@ -1,7 +1,7 @@
 package com.example.xiangqi.listener;
 
-import com.example.xiangqi.service.MatchContractService;
-import com.example.xiangqi.service.MatchService;
+import com.example.xiangqi.service.my_sql.MatchContractService;
+import com.example.xiangqi.service.my_sql.MatchService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

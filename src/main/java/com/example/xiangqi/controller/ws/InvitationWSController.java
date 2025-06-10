@@ -1,7 +1,7 @@
 package com.example.xiangqi.controller.ws;
 
 import com.example.xiangqi.dto.request.*;
-import com.example.xiangqi.service.InvitationService;
+import com.example.xiangqi.service.my_sql.InvitationService;
 import jakarta.validation.Valid;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

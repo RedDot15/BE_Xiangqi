@@ -1,7 +1,8 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 import com.example.xiangqi.dto.request.ChangePasswordRequest;
 import com.example.xiangqi.dto.request.PlayerRequest;
+import com.example.xiangqi.dto.request.SocialPlayerRequest;
 import com.example.xiangqi.dto.response.PlayerResponse;
 import com.example.xiangqi.entity.my_sql.PlayerEntity;
 import com.example.xiangqi.exception.AppException;
@@ -33,6 +34,7 @@ public class PlayerService {
 	PlayerRepository playerRepository;
 	PlayerMapper playerMapper;
 	PasswordEncoder passwordEncoder;
+	AuthenticationService authenticationService;
 
 	public List<PlayerResponse> getAll(int page, int size, String role) {
 		// Define pageable
@@ -68,7 +70,27 @@ public class PlayerService {
 		try {
 			playerEntity = playerRepository.save(playerEntity);
 		} catch (DataIntegrityViolationException e) {
-			throw new AppException(ErrorCode.USERNAME_DUPLICATE);
+			throw new AppException(ErrorCode.USER_DUPLICATE);
+		}
+		// Save & Return
+		return playerMapper.toPlayerResponse(playerEntity);
+	}
+
+	public PlayerResponse socialRegister(SocialPlayerRequest request) {
+		// Mapping socialRegisterRequest -> playerEntity
+		PlayerEntity playerEntity = PlayerEntity.builder()
+				.username(request.getUsername())
+				.build();
+		// Encode password
+		playerEntity.setPassword(passwordEncoder.encode(request.getPassword()));
+		// Get & Set user email
+		String email = authenticationService.getUserEmailFromToken(request.getRegistrationToken());
+		playerEntity.setEmail(email);
+		// Add
+		try {
+			playerEntity = playerRepository.save(playerEntity);
+		} catch (DataIntegrityViolationException e) {
+			throw new AppException(ErrorCode.USER_DUPLICATE);
 		}
 		// Save & Return
 		return playerMapper.toPlayerResponse(playerEntity);

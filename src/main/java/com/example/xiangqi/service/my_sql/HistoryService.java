@@ -1,4 +1,4 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 import com.example.xiangqi.dto.response.*;
 import com.example.xiangqi.dto.response.PageResponse;

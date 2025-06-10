@@ -1,4 +1,4 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 import jakarta.transaction.Transactional;
 import lombok.AccessLevel;

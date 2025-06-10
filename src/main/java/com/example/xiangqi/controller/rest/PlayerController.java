@@ -2,8 +2,9 @@ package com.example.xiangqi.controller.rest;
 
 import com.example.xiangqi.dto.request.ChangePasswordRequest;
 import com.example.xiangqi.dto.request.PlayerRequest;
+import com.example.xiangqi.dto.request.SocialPlayerRequest;
 import com.example.xiangqi.helper.ResponseObject;
-import com.example.xiangqi.service.PlayerService;
+import com.example.xiangqi.service.my_sql.PlayerService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,12 @@ public class PlayerController {
 	public ResponseEntity<ResponseObject> register(@Valid @RequestBody PlayerRequest playerRequest) {
 		// Create & Return user
 		return buildResponse(HttpStatus.OK, "Created new player successfully.", playerService.register(playerRequest));
+	}
+
+	@PostMapping("/social")
+	public ResponseEntity<ResponseObject> socialRegister(@Valid @RequestBody SocialPlayerRequest request) {
+		// Create & Return user
+		return buildResponse(HttpStatus.OK, "Created new player successfully.", playerService.socialRegister(request));
 	}
 
 	@PutMapping("/me")

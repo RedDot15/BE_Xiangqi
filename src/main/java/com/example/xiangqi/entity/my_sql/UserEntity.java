@@ -30,6 +30,10 @@ public class UserEntity {
     @Column(name = "username", nullable = false, length = 50)
     String username;
 
+    @Size(max = 75)
+    @Column(name = "email", length = 75)
+    String email;
+
     @Size(max = 255)
     @NotNull
     @Column(name = "password", nullable = false)
@@ -40,5 +44,4 @@ public class UserEntity {
     @ColumnDefault("PLAYER")
     @Column(name = "role", nullable = false, length = 50)
     String role;
-
 }

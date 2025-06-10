@@ -1,7 +1,7 @@
 package com.example.xiangqi.controller.rest;
 
 import com.example.xiangqi.helper.ResponseObject;
-import com.example.xiangqi.service.HistoryService;
+import com.example.xiangqi.service.my_sql.HistoryService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

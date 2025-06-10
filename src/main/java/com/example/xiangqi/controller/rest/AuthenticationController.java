@@ -1,9 +1,10 @@
 package com.example.xiangqi.controller.rest;
 
 import com.example.xiangqi.dto.request.AuthenticationRequest;
+import com.example.xiangqi.dto.request.OutboundAuthenticationRequest;
 import com.example.xiangqi.dto.request.RefreshRequest;
 import com.example.xiangqi.helper.ResponseObject;
-import com.example.xiangqi.service.AuthenticationService;
+import com.example.xiangqi.service.my_sql.AuthenticationService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +18,14 @@ import static com.example.xiangqi.helper.ResponseBuilder.buildResponse;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RestController
-@RequestMapping("/api/auth/")
+@RequestMapping("/api/auth")
 public class AuthenticationController {
 	AuthenticationService authenticationService;
+
+	@PostMapping("/outbound/{provider}/authenticate")
+	public ResponseEntity<ResponseObject> outboundAuthenticate(@PathVariable String provider, @RequestBody OutboundAuthenticationRequest request){
+		return buildResponse(HttpStatus.OK, "Outbound authenticate successfully.", authenticationService.outboundAuthenticate(request));
+	}
 
 	@PostMapping(value = "/tokens")
 	public ResponseEntity<ResponseObject> authenticate(@Valid @RequestBody AuthenticationRequest request) {
@@ -28,7 +34,7 @@ public class AuthenticationController {
 
 	@PostMapping("/tokens/refresh")
 	public ResponseEntity<ResponseObject> refreshToken(@Valid @RequestBody RefreshRequest request) {
-		return buildResponse(HttpStatus.OK, "Authenticate successfully.", authenticationService.refresh(request));
+		return buildResponse(HttpStatus.OK, "Refresh token successfully.", authenticationService.refresh(request));
 	}
 
 	@GetMapping("/tokens/introspect")

@@ -2,7 +2,7 @@ package com.example.xiangqi.controller.ws;
 
 import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.dto.request.ResignRequest;
-import com.example.xiangqi.service.MatchService;
+import com.example.xiangqi.service.my_sql.MatchService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

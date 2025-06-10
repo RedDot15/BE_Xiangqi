@@ -1,6 +1,6 @@
 package com.example.xiangqi.config.security;
 
-import com.example.xiangqi.service.TokenService;
+import com.example.xiangqi.service.my_sql.TokenService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

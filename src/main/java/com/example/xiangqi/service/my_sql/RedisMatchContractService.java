@@ -1,4 +1,4 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 import com.example.xiangqi.entity.redis.MatchContractEntity;
 import jakarta.transaction.Transactional;

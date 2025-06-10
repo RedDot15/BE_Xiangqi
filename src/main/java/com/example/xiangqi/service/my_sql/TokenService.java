@@ -1,4 +1,4 @@
-package com.example.xiangqi.service;
+package com.example.xiangqi.service.my_sql;
 
 import com.example.xiangqi.entity.my_sql.UserEntity;
 import com.example.xiangqi.repository.UserRepository;

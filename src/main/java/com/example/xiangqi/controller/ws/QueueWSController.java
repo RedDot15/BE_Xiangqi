@@ -2,7 +2,7 @@ package com.example.xiangqi.controller.ws;
 
 import com.example.xiangqi.dto.request.QueueJoinRequest;
 import com.example.xiangqi.dto.request.QueueLeaveRequest;
-import com.example.xiangqi.service.QueueService;
+import com.example.xiangqi.service.my_sql.QueueService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

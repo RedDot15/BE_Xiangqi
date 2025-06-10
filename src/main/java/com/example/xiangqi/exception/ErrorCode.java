@@ -13,7 +13,7 @@ public enum ErrorCode {
     // General
     UNCATEGORIZED(HttpStatus.INTERNAL_SERVER_ERROR, "Uncategorized error."),
     // Player
-    USERNAME_DUPLICATE(HttpStatus.CONFLICT, "Username already exists."),
+    USER_DUPLICATE(HttpStatus.CONFLICT, "User already exists."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found."),
     WRONG_PASSWORD(HttpStatus.BAD_REQUEST, "Wrong password."),
     // Authentication

@@ -1,7 +1,7 @@
 package com.example.xiangqi.controller.ws;
 
 import com.example.xiangqi.dto.request.ContractAcceptRequest;
-import com.example.xiangqi.service.MatchContractService;
+import com.example.xiangqi.service.my_sql.MatchContractService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

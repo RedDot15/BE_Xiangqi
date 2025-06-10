@@ -1,9 +1,7 @@
 package com.example.xiangqi.controller.rest;
 
-import com.example.xiangqi.dto.request.MoveRequest;
 import com.example.xiangqi.helper.ResponseObject;
-import com.example.xiangqi.service.MatchService;
-import jakarta.validation.Valid;
+import com.example.xiangqi.service.my_sql.MatchService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

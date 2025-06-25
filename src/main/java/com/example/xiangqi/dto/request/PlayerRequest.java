@@ -1,8 +1,6 @@
 package com.example.xiangqi.dto.request;
 
 import com.example.xiangqi.validation.annotation.Match;
-import com.example.xiangqi.validation.group.Create;
-import com.example.xiangqi.validation.group.Update;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
